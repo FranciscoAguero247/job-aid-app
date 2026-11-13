@@ -18,7 +18,7 @@ export interface EnrichedContact {
   location?: string;
   photoUrl?: string;
   headline?: string;
-  enrichedVia: 'Apollo' | 'Manual' | 'Mock';
+  enrichedVia: 'Manual' | 'Mock';
 }
 
 export interface JobApplication {
@@ -68,7 +68,6 @@ export interface MasterResume {
 
 export interface AppSettings {
   geminiApiKey: string;
-  apolloApiKey: string;
   googleSheetUrl: string;
   lastSynced?: string;
 }

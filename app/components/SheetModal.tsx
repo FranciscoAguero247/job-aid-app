@@ -11,7 +11,6 @@ interface SheetModalProps {
   onSelectApp: (app: JobApplication) => void;
   onAddApplication: (newApp: Partial<JobApplication>) => void;
   onSyncSheet: () => void;
-  onEnrichApp: (appId: string) => void;
   isSyncing: boolean;
 }
 
@@ -23,7 +22,6 @@ export default function SheetModal({
   onSelectApp,
   onAddApplication,
   onSyncSheet,
-  onEnrichApp,
   isSyncing,
 }: SheetModalProps) {
   const [filterStatus, setFilterStatus] = useState<string>('All');
@@ -92,7 +90,7 @@ export default function SheetModal({
             </div>
             <div>
               <h3 className="text-lg font-bold text-slate-900">Live Application Tracker Sheet</h3>
-              <p className="text-xs text-slate-500">Live sync with Google Sheets & Apollo contact discovery</p>
+              <p className="text-xs text-slate-500">Live sync with Google Sheets and manual contact tracking</p>
             </div>
           </div>
 
@@ -207,7 +205,7 @@ export default function SheetModal({
                 <th className="py-2.5 px-3">Company & Role</th>
                 <th className="py-2.5 px-3">Status</th>
                 <th className="py-2.5 px-3">Applied</th>
-                <th className="py-2.5 px-3">Apollo Enriched Contact</th>
+                <th className="py-2.5 px-3">Contact</th>
                 <th className="py-2.5 px-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -268,12 +266,7 @@ export default function SheetModal({
                           )}
                         </div>
                       ) : (
-                        <button
-                          onClick={() => onEnrichApp(app.id)}
-                          className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1"
-                        >
-                          <span>⚡ Enrich Contact</span>
-                        </button>
+                        <span className="text-[11px] text-slate-400 italic">No contact added</span>
                       )}
                     </td>
 

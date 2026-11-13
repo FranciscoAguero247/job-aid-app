@@ -267,7 +267,7 @@ export default function TabFollowUps({
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-slate-900 text-sm">{contact.name}</span>
                   <span className="text-[10px] bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full font-semibold">
-                    Apollo Enriched
+                    Manual Contact
                   </span>
                 </div>
                 <div className="text-xs text-slate-500">{contact.title} • <span className="font-mono text-slate-600">{contact.email}</span></div>

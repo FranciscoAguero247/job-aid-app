@@ -12,8 +12,6 @@ interface HeaderProps {
   onOpenSettings: () => void;
   onOpenSheetModal: () => void;
   onOpenResumeModal: () => void;
-  onEnrichCurrentApp: () => void;
-  isEnriching: boolean;
   settings: AppSettings;
   masterResume: MasterResume;
 }
@@ -27,12 +25,9 @@ export default function Header({
   onOpenSettings,
   onOpenSheetModal,
   onOpenResumeModal,
-  onEnrichCurrentApp,
-  isEnriching,
   settings,
   masterResume,
 }: HeaderProps) {
-  const contact = selectedApp?.contact;
 
   return (
     <header className="border-b border-slate-200 bg-white sticky top-0 z-40 shadow-sm no-print">

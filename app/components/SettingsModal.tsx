@@ -17,7 +17,6 @@ export default function SettingsModal({
   onSaveSettings,
 }: SettingsModalProps) {
   const [geminiKey, setGeminiKey] = useState(settings.geminiApiKey || '');
-  const [apolloKey, setApolloKey] = useState(settings.apolloApiKey || '');
   const [sheetUrl, setSheetUrl] = useState(settings.googleSheetUrl || '');
 
   if (!isOpen) return null;
@@ -25,7 +24,6 @@ export default function SettingsModal({
   const handleSave = () => {
     onSaveSettings({
       geminiApiKey: geminiKey.trim(),
-      apolloApiKey: apolloKey.trim(),
       googleSheetUrl: sheetUrl.trim(),
       lastSynced: settings.lastSynced,
     });
@@ -42,7 +40,7 @@ export default function SettingsModal({
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900">Pipeline Integrations & API Keys</h3>
-              <p className="text-xs text-slate-500">Configure keys for Gemini, Apollo, and your Google Tracker Sheet</p>
+              <p className="text-xs text-slate-500">Configure your Gemini key and Google Tracker Sheet</p>
             </div>
           </div>
           <button
@@ -81,35 +79,6 @@ export default function SettingsModal({
             />
             <p className="text-[11px] text-slate-500 mt-1">
               Powering Resume tailoring, custom follow-ups, and the anti-jargon tone engine. If omitted, built-in intelligent templates are used.
-            </p>
-          </div>
-
-          {/* Apollo API Key */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label htmlFor="apollo-key-input" className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-                Apollo API Key (Contact Enrichment)
-              </label>
-              <a
-                href="https://app.apollo.io/#/settings/integrations/api"
-                target="_blank"
-                rel="noreferrer"
-                className="text-[11px] text-purple-600 hover:underline"
-              >
-                Apollo Console ↗
-              </a>
-            </div>
-            <input
-              id="apollo-key-input"
-              type="password"
-              placeholder="api_key_..."
-              value={apolloKey}
-              onChange={(e) => setApolloKey(e.target.value)}
-              className="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono text-slate-800 placeholder:text-slate-400"
-            />
-            <p className="text-[11px] text-slate-500 mt-1">
-              Automatically discovers verified hiring manager emails and LinkedIn handles.
             </p>
           </div>
 

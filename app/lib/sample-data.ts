@@ -94,7 +94,7 @@ export const SAMPLE_APPLICATIONS: JobApplication[] = [
       linkedinUrl: "https://www.linkedin.com/in/marcus-vance-eng",
       location: "San Francisco Bay Area",
       headline: "Engineering Manager @ Stripe | Building world-class developer tools",
-      enrichedVia: "Apollo"
+      enrichedVia: "Manual"
     },
     jobDescription: `About the Role:
 At Stripe, we are building economic infrastructure for the internet. As a Senior Frontend Engineer on the Developer Experience team, you will craft the tools, SDK interfaces, and dashboards that millions of developers worldwide use daily to integrate payments and financial services.
@@ -133,7 +133,7 @@ Requirements:
       linkedinUrl: "https://www.linkedin.com/in/artman",
       location: "San Francisco, CA",
       headline: "Co-Founder at Linear. Speed is the feature.",
-      enrichedVia: "Apollo"
+      enrichedVia: "Manual"
     },
     jobDescription: `About Linear:
 Linear is a purpose-built tool for modern software teams to manage projects, issues, and product roadmaps. We obsess over speed, fluidity, and craft.
@@ -169,7 +169,7 @@ What you'll bring:
       linkedinUrl: "https://www.linkedin.com/in/elena-rostova-figma",
       location: "New York, NY",
       headline: "Bridging code & design at Figma. Ex-Airbnb.",
-      enrichedVia: "Apollo"
+      enrichedVia: "Manual"
     },
     jobDescription: `At Figma, we believe that design should be collaborative, accessible, and fast.
 
@@ -202,7 +202,7 @@ Key Responsibilities:
       linkedinUrl: "https://www.linkedin.com/in/david-chen-talent",
       location: "New York, NY",
       headline: "Technical Recruiter @ Datadog | Hiring Infrastructure & Platform Engineers",
-      enrichedVia: "Apollo"
+      enrichedVia: "Manual"
     },
     jobDescription: `Datadog is the monitoring and security platform for cloud applications.
 

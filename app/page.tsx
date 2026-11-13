@@ -22,13 +22,11 @@ export default function Home() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSheetModalOpen, setIsSheetModalOpen] = useState(false);
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
-  const [isEnriching, setIsEnriching] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
   // App settings state
   const [settings, setSettings] = useState<AppSettings>({
     geminiApiKey: '',
-    apolloApiKey: '',
     googleSheetUrl: '',
   });
 
@@ -84,40 +82,6 @@ export default function Home() {
   };
 
   const selectedApp = applications.find(a => a.id === selectedAppId) || applications[0];
-
-  // Enrich contact with Apollo
-  const handleEnrichApp = async (appId: string) => {
-    const target = applications.find(a => a.id === appId);
-    if (!target) return;
-
-    setIsEnriching(true);
-    try {
-      const res = await fetch('/api/apollo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          company: target.company,
-          position: target.position,
-          apolloApiKey: settings.apolloApiKey,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success && data.contact) {
-        const updated = applications.map(app => {
-          if (app.id === appId) {
-            return { ...app, contact: data.contact };
-          }
-          return app;
-        });
-        saveApplications(updated);
-      }
-    } catch (err) {
-      console.error('Apollo enrichment failed:', err);
-    } finally {
-      setIsEnriching(false);
-    }
-  };
 
   // Sync with Google Sheets
   const handleSyncSheet = async () => {
@@ -200,8 +164,6 @@ export default function Home() {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenSheetModal={() => setIsSheetModalOpen(true)}
         onOpenResumeModal={() => setIsResumeModalOpen(true)}
-        onEnrichCurrentApp={() => handleEnrichApp(selectedApp.id)}
-        isEnriching={isEnriching}
         settings={settings}
         masterResume={masterResume}
       />
@@ -271,7 +233,6 @@ export default function Home() {
         onSelectApp={(app) => setSelectedAppId(app.id)}
         onAddApplication={handleAddApplication}
         onSyncSheet={handleSyncSheet}
-        onEnrichApp={handleEnrichApp}
         isSyncing={isSyncing}
       />
 
