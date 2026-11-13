@@ -72,3 +72,21 @@ export interface AppSettings {
   googleSheetUrl: string;
   lastSynced?: string;
 }
+
+export interface CareerAdvice {
+  matchScore: number;
+  strengths: string[];
+  gapsToAddress: string[];
+  interviewTips: string[];
+  questionsToAsk: string[];
+}
+
+export interface ExtractedJobInfo {
+  company: string;
+  position: string;
+  location?: string;
+  workplaceType?: 'Remote' | 'Hybrid' | 'On-site';
+  salary?: string;
+  jobDescription: string;
+}
+

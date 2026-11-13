@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import SettingsModal from './components/SettingsModal';
 import SheetModal from './components/SheetModal';
+import ResumeModal from './components/ResumeModal';
+import FastApplyWorkspace from './components/FastApplyWorkspace';
 import TabResumeCoverLetter from './components/TabResumeCoverLetter';
 import TabFollowUps from './components/TabFollowUps';
 import TabNetworking from './components/TabNetworking';
@@ -14,11 +16,12 @@ export default function Home() {
   const [applications, setApplications] = useState<JobApplication[]>(SAMPLE_APPLICATIONS);
   const [selectedAppId, setSelectedAppId] = useState<string>(SAMPLE_APPLICATIONS[0].id);
   const [masterResume, setMasterResume] = useState<MasterResume>(SAMPLE_MASTER_RESUME);
-  const [activeTab, setActiveTab] = useState<'resume' | 'followups' | 'networking'>('resume');
+  const [activeTab, setActiveTab] = useState<'fast-apply' | 'pipeline' | 'followups' | 'networking'>('fast-apply');
   
   // Modals state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSheetModalOpen, setIsSheetModalOpen] = useState(false);
+  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [isEnriching, setIsEnriching] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -29,12 +32,16 @@ export default function Home() {
     googleSheetUrl: '',
   });
 
-  // Load saved settings & applications from localStorage on client mount
+  // Load saved settings, master resume & applications from localStorage on client mount
   useEffect(() => {
     try {
       const savedSettings = localStorage.getItem('job_aid_settings');
       if (savedSettings) {
         setSettings(JSON.parse(savedSettings));
+      }
+      const savedResume = localStorage.getItem('job_aid_master_resume');
+      if (savedResume) {
+        setMasterResume(JSON.parse(savedResume));
       }
       const savedApps = localStorage.getItem('job_aid_applications');
       if (savedApps) {
@@ -55,6 +62,15 @@ export default function Home() {
       localStorage.setItem('job_aid_applications', JSON.stringify(newApps));
     } catch (e) {
       console.warn('Could not save applications', e);
+    }
+  };
+
+  const handleSaveResume = (newResume: MasterResume) => {
+    setMasterResume(newResume);
+    try {
+      localStorage.setItem('job_aid_master_resume', JSON.stringify(newResume));
+    } catch (e) {
+      console.warn('Could not save master resume', e);
     }
   };
 
@@ -127,20 +143,21 @@ export default function Home() {
     }
   };
 
-  // Add new application manually
+  // Add new application manually / from fast apply
   const handleAddApplication = (newApp: Partial<JobApplication>) => {
     const fullApp: JobApplication = {
       id: `app-${Date.now()}`,
       company: newApp.company || 'New Company',
       position: newApp.position || 'Software Engineer',
       location: newApp.location || 'Remote',
-      workplaceType: 'Remote',
+      workplaceType: newApp.workplaceType || 'Remote',
       salary: newApp.salary,
       status: newApp.status || 'Applied',
       appliedDate: newApp.appliedDate || new Date().toISOString().split('T')[0],
       lastContactDate: newApp.appliedDate || new Date().toISOString().split('T')[0],
       jobDescription: newApp.jobDescription || 'Add requirements and description here...',
-      matchScore: 90,
+      jobUrl: newApp.jobUrl,
+      matchScore: newApp.matchScore || 90,
     };
 
     const updated = [fullApp, ...applications];
@@ -182,14 +199,26 @@ export default function Home() {
         onChangeTab={setActiveTab}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenSheetModal={() => setIsSheetModalOpen(true)}
+        onOpenResumeModal={() => setIsResumeModalOpen(true)}
         onEnrichCurrentApp={() => handleEnrichApp(selectedApp.id)}
         isEnriching={isEnriching}
         settings={settings}
+        masterResume={masterResume}
       />
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {activeTab === 'resume' && (
+        {activeTab === 'fast-apply' && (
+          <FastApplyWorkspace
+            masterResume={masterResume}
+            onUpdateMasterResume={handleSaveResume}
+            onSaveApplicationToTracker={handleAddApplication}
+            onOpenResumeModal={() => setIsResumeModalOpen(true)}
+            settings={settings}
+          />
+        )}
+
+        {activeTab === 'pipeline' && (
           <TabResumeCoverLetter
             application={selectedApp}
             masterResume={masterResume}
@@ -216,6 +245,15 @@ export default function Home() {
         )}
       </main>
 
+      {/* Master Resume Upload & Review Modal */}
+      <ResumeModal
+        isOpen={isResumeModalOpen}
+        onClose={() => setIsResumeModalOpen(false)}
+        masterResume={masterResume}
+        onSaveResume={handleSaveResume}
+        apiKey={settings.geminiApiKey}
+      />
+
       {/* Settings Modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
@@ -239,7 +277,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-400 no-print">
-        JobAid • The 3-Tab Job Hunting Command Center • Live Sheet Sync • Apollo Contact Enrichment • AI Tailoring
+        JobAid • AI Job Hunting Command Center • Truth-Anchored Tailoring • Fast Plug & Play Application Kits
       </footer>
 
     </div>
