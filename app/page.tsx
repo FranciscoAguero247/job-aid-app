@@ -84,7 +84,7 @@ export default function Home() {
   const selectedApp = applications.find(a => a.id === selectedAppId) || applications[0];
 
   // Sync with Google Sheets
-  const handleSyncSheet = async () => {
+  const handleSyncSheet = async (customRawData?: string): Promise<{ success: boolean; error?: string; count?: number }> => {
     setIsSyncing(true);
     try {
       const res = await fetch('/api/sheets', {
@@ -92,6 +92,7 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sheetUrl: settings.googleSheetUrl || undefined,
+          rawData: customRawData || undefined,
         }),
       });
 
@@ -99,9 +100,13 @@ export default function Home() {
       if (data.success && Array.isArray(data.applications) && data.applications.length > 0) {
         saveApplications(data.applications);
         setSelectedAppId(data.applications[0].id);
+        return { success: true, count: data.applications.length };
+      } else {
+        return { success: false, error: data.error || 'Failed to sync sheet' };
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Sheet sync failed:', err);
+      return { success: false, error: err.message || 'Failed to sync with Google Sheet' };
     } finally {
       setIsSyncing(false);
     }

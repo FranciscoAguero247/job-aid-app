@@ -46,11 +46,32 @@ export async function POST(req: NextRequest) {
         }
       });
 
+      if (res.status === 401 || res.status === 403 || res.url.includes('accounts.google.com')) {
+        return NextResponse.json({
+          success: false,
+          error: 'Google Sheet is private. Open your spreadsheet, click "Share" (top-right), and change General access to "Anyone with the link can view". Alternatively, download as CSV and paste it below.',
+          code: 'SHEET_PRIVATE'
+        }, { status: 403 });
+      }
+
       if (!res.ok) {
-        throw new Error(`Failed to fetch sheet (${res.status}). Make sure the sheet is shared as "Anyone with the link can view".`);
+        return NextResponse.json({
+          success: false,
+          error: `Google Sheets returned HTTP ${res.status}. Verify the sheet link and ensure it is accessible.`,
+          code: 'FETCH_FAILED'
+        }, { status: 400 });
       }
 
       csvContent = await res.text();
+
+      // Check if Google returned an HTML login or error page instead of CSV
+      if (csvContent.includes('<!DOCTYPE html>') || csvContent.includes('<html')) {
+        return NextResponse.json({
+          success: false,
+          error: 'Google Sheet is restricted or requires login. Click "Share" and change General access to "Anyone with the link can view".',
+          code: 'SHEET_RESTRICTED'
+        }, { status: 403 });
+      }
     } else {
       return NextResponse.json({ success: false, error: 'No sheet URL or data provided' }, { status: 400 });
     }
