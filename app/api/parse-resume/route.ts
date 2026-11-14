@@ -1,5 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { MasterResume } from '@/app/types';
+
+async function extractPdfText(file: File): Promise<string> {
+  try {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const pdfData = new Uint8Array(buffer);
+    const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+
+    const pages: string[] = [];
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
+      const page = await pdf.getPage(pageNum);
+      const content = await page.getTextContent();
+      const text = content.items
+        .map((item: any) => ('str' in item ? item.str : ''))
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (text) {
+        pages.push(text);
+      }
+    }
+
+    return pages.join('\n\n');
+  } catch (error) {
+    console.warn('Local PDF extraction failed:', error);
+    return '';
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,6 +50,7 @@ export async function POST(req: NextRequest) {
     if (isPdf) {
       const buffer = await file.arrayBuffer();
       base64Pdf = Buffer.from(buffer).toString('base64');
+      rawText = await extractPdfText(file);
     } else {
       rawText = await file.text();
       if (isJson) {
