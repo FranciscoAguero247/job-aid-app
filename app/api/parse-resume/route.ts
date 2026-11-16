@@ -29,6 +29,109 @@ async function extractPdfTextFromBuffer(buffer: Buffer): Promise<string> {
   }
 }
 
+function buildFallbackResume(rawText: string, fileName: string): MasterResume | null {
+  const normalizedText = rawText.replace(/\s+/g, ' ').trim();
+  if (!normalizedText || normalizedText.length < 50) {
+    return null;
+  }
+
+  const emailMatch = normalizedText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  const phoneMatch = normalizedText.match(/(\+?\d{1,3}[-.\s]?)?(\(?\d{3}\)?[-.\s]?)?\d{3}[-.\s]?\d{4}/);
+  const linkedinMatch = normalizedText.match(/linkedin\.com\/in\/([a-zA-Z0-9_-]+)/);
+  const githubMatch = normalizedText.match(/github\.com\/([a-zA-Z0-9_-]+)/);
+  const portfolioMatch = normalizedText.match(/(https?:\/\/[^\s]+|www\.[^\s]+)/i);
+
+  const fileBaseName = fileName.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+  const candidateNameLine = normalizedText
+    .split(/\n|\s{2,}/)
+    .find((line) => {
+      const trimmed = line.trim();
+      return trimmed && /^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+$/.test(trimmed);
+    }) || fileBaseName;
+
+  const summary = normalizedText.length > 220
+    ? normalizedText.slice(0, 220).trim()
+    : normalizedText;
+
+  const skills = normalizedText
+    .split(/\s+/)
+    .filter((token) => token.length > 2)
+    .slice(0, 20)
+    .map((skill) => skill.replace(/[,.;]/g, ''));
+
+  const fallbackResume: MasterResume = {
+    fullName: candidateNameLine.trim(),
+    email: emailMatch?.[0] || '',
+    phone: phoneMatch?.[0] || '',
+    location: '',
+    linkedin: linkedinMatch ? `https://linkedin.com/in/${linkedinMatch[1]}` : '',
+    github: githubMatch ? `https://github.com/${githubMatch[1]}` : '',
+    portfolio: portfolioMatch ? portfolioMatch[0] : '',
+    summary,
+    experience: [
+      {
+        id: 'exp-1',
+        role: 'Professional Experience',
+        company: '',
+        location: '',
+        period: '',
+        bullets: [summary],
+      },
+    ],
+    skills: [
+      {
+        category: 'Detected Skills',
+        items: skills.length ? skills : ['resume'],
+      },
+    ],
+    education: [],
+  };
+
+  return fallbackResume;
+}
+
+function parseGeminiResumePayload(rawText: string): MasterResume | null {
+  try {
+    const cleaned = rawText.replace(/```json\n?|\n?```/g, '').trim();
+    const parsed = JSON.parse(cleaned) as Partial<MasterResume>;
+
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (!parsed.fullName || !Array.isArray(parsed.experience) || !Array.isArray(parsed.skills)) {
+      return null;
+    }
+
+    return {
+      fullName: parsed.fullName || '',
+      email: parsed.email || '',
+      phone: parsed.phone || '',
+      location: parsed.location || '',
+      linkedin: parsed.linkedin || '',
+      github: parsed.github || '',
+      portfolio: parsed.portfolio || '',
+      summary: parsed.summary || '',
+      experience: parsed.experience.map((exp, index) => ({
+        id: exp?.id || `exp-${index + 1}`,
+        role: exp?.role || '',
+        company: exp?.company || '',
+        location: exp?.location || '',
+        period: exp?.period || '',
+        bullets: Array.isArray(exp?.bullets) ? exp.bullets : [],
+      })),
+      skills: parsed.skills.map((group, index) => ({
+        category: group?.category || `Skill Group ${index + 1}`,
+        items: Array.isArray(group?.items) ? group.items : [],
+      })),
+      education: Array.isArray(parsed.education) ? parsed.education.map((edu) => ({
+        degree: edu?.degree || '',
+        institution: edu?.institution || '',
+        year: edu?.year || '',
+      })) : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
@@ -45,13 +148,11 @@ export async function POST(req: NextRequest) {
 
     let rawText = '';
     let base64Pdf = '';
-    let buffer: Buffer | null = null;
 
     if (isPdf) {
       const arrayBuffer = await file.arrayBuffer();
-      buffer = Buffer.from(arrayBuffer);
+      const buffer = Buffer.from(arrayBuffer);
       base64Pdf = buffer.toString('base64');
-      // Attempt local extraction, but don't hard-fail if pdfjs-dist stumbles
       rawText = await extractPdfTextFromBuffer(buffer);
     } else {
       rawText = await file.text();
@@ -67,7 +168,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 1. Attempt Gemini Structured Parser (Gemini handles PDFs natively via base64)
     if (apiKey) {
       try {
         const systemPrompt = `You are an elite, highly accurate resume data extraction engine.
@@ -146,10 +246,13 @@ CRITICAL RULES:
 
         if (geminiRes.ok) {
           const geminiData = await geminiRes.json();
-          const jsonText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (jsonText) {
-            const cleaned = jsonText.replace(/```json\n?|\n?```/g, '').trim();
-            const parsed = JSON.parse(cleaned) as MasterResume;
+          const geminiParts = geminiData?.candidates?.flatMap((candidate: any) => candidate?.content?.parts ?? []) ?? [];
+          const jsonText = geminiParts
+            .map((part: any) => typeof part?.text === 'string' ? part.text : '')
+            .join('\n');
+
+          const parsed = parseGeminiResumePayload(jsonText);
+          if (parsed) {
             return NextResponse.json({ success: true, resume: parsed, source: 'gemini' });
           }
         }
@@ -158,20 +261,28 @@ CRITICAL RULES:
       }
     }
 
-    // 2. Only enforce the text length guard if Gemini wasn't used / available AND local extraction truly found nothing
     if (isPdf && (!rawText || rawText.trim().length < 50)) {
       return NextResponse.json({
         success: false,
         code: 'SCANNED_OR_IMAGE_PDF',
-        error: 'Resume text could not be read locally. Please provide a Gemini API key for native PDF parsing, or upload text.'
+        error: 'Resume text could not be read locally. Please provide a Gemini API key for native PDF parsing, or upload a text-based PDF or .txt resume.',
       }, { status: 422 });
     }
 
-    // 3. Heuristic Fallback Parser Response
+    const heuristicResume = buildFallbackResume(rawText, file.name);
+    if (!heuristicResume) {
+      return NextResponse.json({
+        success: false,
+        code: 'UNREADABLE_RESUME',
+        error: 'The uploaded resume is unreadable. Please upload a text-based PDF, plain text resume, or JSON resume.',
+      }, { status: 422 });
+    }
+
     return NextResponse.json({
       success: true,
+      resume: heuristicResume,
       source: 'heuristic-fallback',
-      message: 'Parsed via local fallback. Provide Gemini API key in Settings for deep semantic PDF parsing.'
+      message: 'Parsed via local fallback. Provide Gemini API key in Settings for deeper semantic extraction.',
     });
   } catch (error: any) {
     console.error('Resume upload error:', error);
