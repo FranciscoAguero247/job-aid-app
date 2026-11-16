@@ -1,251 +1,164 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Header from './components/Header';
-import SettingsModal from './components/SettingsModal';
-import SheetModal from './components/SheetModal';
+import React, { useState } from 'react';
 import ResumeModal from './components/ResumeModal';
-import FastApplyWorkspace from './components/FastApplyWorkspace';
-import TabResumeCoverLetter from './components/TabResumeCoverLetter';
-import TabFollowUps from './components/TabFollowUps';
-import TabNetworking from './components/TabNetworking';
-import { SAMPLE_APPLICATIONS, SAMPLE_MASTER_RESUME } from './lib/sample-data';
-import { JobApplication, MasterResume, AppSettings } from './types';
+import { MasterResume } from './types';
+import Header from './components/Header';
+
+const DEFAULT_RESUME: MasterResume = {
+  fullName: '',
+  email: '',
+  phone: '',
+  location: '',
+  linkedin: '',
+  github: '',
+  portfolio: '',
+  summary: '',
+  experience: [],
+  skills: [],
+  education: [],
+};
 
 export default function Home() {
-  const [applications, setApplications] = useState<JobApplication[]>(SAMPLE_APPLICATIONS);
-  const [selectedAppId, setSelectedAppId] = useState<string>(SAMPLE_APPLICATIONS[0].id);
-  const [masterResume, setMasterResume] = useState<MasterResume>(SAMPLE_MASTER_RESUME);
-  const [activeTab, setActiveTab] = useState<'fast-apply' | 'pipeline' | 'followups' | 'networking'>('fast-apply');
-  
-  // Modals state
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isSheetModalOpen, setIsSheetModalOpen] = useState(false);
+  const [resume, setResume] = useState<MasterResume>(DEFAULT_RESUME);
+  const [jobDescription, setJobDescription] = useState('');
+  const [tailoredResume, setTailoredResume] = useState('');
+  const [coverLetter, setCoverLetter] = useState('');
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  // App settings state
-  const [settings, setSettings] = useState<AppSettings>({
-    geminiApiKey: '',
-    googleSheetUrl: '',
-  });
+  const handleGenerate = async () => {
+    if (!resume.fullName || !jobDescription.trim()) return;
 
-  // Load saved settings, master resume & applications from localStorage on client mount
-  useEffect(() => {
+    setIsGenerating(true);
+
     try {
-      const savedSettings = localStorage.getItem('job_aid_settings');
-      if (savedSettings) {
-        setSettings(JSON.parse(savedSettings));
-      }
-      const savedResume = localStorage.getItem('job_aid_master_resume');
-      if (savedResume) {
-        setMasterResume(JSON.parse(savedResume));
-      }
-      const savedApps = localStorage.getItem('job_aid_applications');
-      if (savedApps) {
-        const parsed = JSON.parse(savedApps);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setApplications(parsed);
-          setSelectedAppId(parsed[0].id);
-        }
-      }
-    } catch (e) {
-      console.warn('Could not read from localStorage', e);
-    }
-  }, []);
-
-  const saveApplications = (newApps: JobApplication[]) => {
-    setApplications(newApps);
-    try {
-      localStorage.setItem('job_aid_applications', JSON.stringify(newApps));
-    } catch (e) {
-      console.warn('Could not save applications', e);
-    }
-  };
-
-  const handleSaveResume = (newResume: MasterResume) => {
-    setMasterResume(newResume);
-    try {
-      localStorage.setItem('job_aid_master_resume', JSON.stringify(newResume));
-    } catch (e) {
-      console.warn('Could not save master resume', e);
-    }
-  };
-
-  const handleSaveSettings = (newSettings: AppSettings) => {
-    setSettings(newSettings);
-    try {
-      localStorage.setItem('job_aid_settings', JSON.stringify(newSettings));
-    } catch (e) {
-      console.warn('Could not save settings', e);
-    }
-  };
-
-  const selectedApp = applications.find(a => a.id === selectedAppId) || applications[0];
-
-  // Sync with Google Sheets
-  const handleSyncSheet = async (customRawData?: string): Promise<{ success: boolean; error?: string; count?: number }> => {
-    setIsSyncing(true);
-    try {
-      const res = await fetch('/api/sheets', {
+      const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sheetUrl: settings.googleSheetUrl || undefined,
-          rawData: customRawData || undefined,
+          action: 'resume',
+          resume,
+          application: {
+            id: 'job-1',
+            company: 'Target Company',
+            position: 'Target Role',
+            location: 'Remote',
+            workplaceType: 'Remote',
+            status: 'Applied',
+            appliedDate: new Date().toISOString().split('T')[0],
+            lastContactDate: new Date().toISOString().split('T')[0],
+            jobDescription,
+          },
+          options: {},
         }),
       });
 
       const data = await res.json();
-      if (data.success && Array.isArray(data.applications) && data.applications.length > 0) {
-        saveApplications(data.applications);
-        setSelectedAppId(data.applications[0].id);
-        return { success: true, count: data.applications.length };
-      } else {
-        return { success: false, error: data.error || 'Failed to sync sheet' };
+      if (data.success) {
+        setTailoredResume(data.result);
       }
-    } catch (err: any) {
-      console.error('Sheet sync failed:', err);
-      return { success: false, error: err.message || 'Failed to sync with Google Sheet' };
     } finally {
-      setIsSyncing(false);
+      setIsGenerating(false);
     }
   };
 
-  // Add new application manually / from fast apply
-  const handleAddApplication = (newApp: Partial<JobApplication>) => {
-    const fullApp: JobApplication = {
-      id: `app-${Date.now()}`,
-      company: newApp.company || 'New Company',
-      position: newApp.position || 'Software Engineer',
-      location: newApp.location || 'Remote',
-      workplaceType: newApp.workplaceType || 'Remote',
-      salary: newApp.salary,
-      status: newApp.status || 'Applied',
-      appliedDate: newApp.appliedDate || new Date().toISOString().split('T')[0],
-      lastContactDate: newApp.appliedDate || new Date().toISOString().split('T')[0],
-      jobDescription: newApp.jobDescription || 'Add requirements and description here...',
-      jobUrl: newApp.jobUrl,
-      matchScore: newApp.matchScore || 90,
-    };
-
-    const updated = [fullApp, ...applications];
-    saveApplications(updated);
-    setSelectedAppId(fullApp.id);
-  };
-
-  // Update target job description for an application
-  const handleUpdateJobDescription = (newJd: string) => {
-    const updated = applications.map(app => {
-      if (app.id === selectedAppId) {
-        return { ...app, jobDescription: newJd };
-      }
-      return app;
+  const handleCoverLetter = async () => {
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'cover-letter',
+        resume,
+        application: {
+          id: 'job-1',
+          company: 'Target Company',
+          position: 'Target Role',
+          location: 'Remote',
+          workplaceType: 'Remote',
+          status: 'Applied',
+          appliedDate: new Date().toISOString().split('T')[0],
+          lastContactDate: new Date().toISOString().split('T')[0],
+          jobDescription,
+        },
+      }),
     });
-    saveApplications(updated);
-  };
 
-  // Update last contact date (e.g. after sending a follow-up)
-  const handleUpdateContactDate = (appId: string, newDate: string) => {
-    const updated = applications.map(app => {
-      if (app.id === appId) {
-        return { ...app, lastContactDate: newDate };
-      }
-      return app;
-    });
-    saveApplications(updated);
+    const data = await res.json();
+    if (data.success) {
+      setCoverLetter(data.result);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      
-      {/* Top Application Header */}
-      <Header
-        applications={applications}
-        selectedApp={selectedApp}
-        onSelectApp={(app) => setSelectedAppId(app.id)}
-        activeTab={activeTab}
-        onChangeTab={setActiveTab}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenSheetModal={() => setIsSheetModalOpen(true)}
-        onOpenResumeModal={() => setIsResumeModalOpen(true)}
-        settings={settings}
-        masterResume={masterResume}
-      />
+    <>
+    <Header />
+    <main className="min-h-screen bg-slate-50 p-6">
+      <div className="mx-auto max-w-7xl grid gap-6 lg:grid-cols-[320px_1fr_1.2fr]">
+        <aside className="bg-white rounded-2xl border p-4">
+          <button
+            onClick={() => setIsResumeModalOpen(true)}
+            className="w-full rounded-xl bg-blue-600 text-white px-4 py-3 font-semibold"
+          >
+            Upload Resume PDF
+          </button>
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {activeTab === 'fast-apply' && (
-          <FastApplyWorkspace
-            masterResume={masterResume}
-            onUpdateMasterResume={handleSaveResume}
-            onSaveApplicationToTracker={handleAddApplication}
-            onOpenResumeModal={() => setIsResumeModalOpen(true)}
-            settings={settings}
-          />
-        )}
+          <div className="mt-4">
+            <h3 className="font-bold">{resume.fullName || 'No resume loaded'}</h3>
+            <p className="text-sm text-slate-500">{resume.email || 'No contact details yet'}</p>
+          </div>
+        </aside>
 
-        {activeTab === 'pipeline' && (
-          <TabResumeCoverLetter
-            application={selectedApp}
-            masterResume={masterResume}
-            onUpdateJobDescription={handleUpdateJobDescription}
-            apiKey={settings.geminiApiKey}
-          />
-        )}
+        <section className="bg-white rounded-2xl border p-4">
+          <h2 className="font-bold text-lg mb-3">Job Description</h2>
+          <textarea
+            value={jobDescription}
+            onChange={(e) => setJobDescription(e.target.value)}
+            className="w-full h-[420px] rounded-xl border p-3"
+            placeholder="Paste job description or URL text here..." />
+          <div className="mt-4 flex gap-3">
+            <button
+              onClick={handleGenerate}
+              className="bg-emerald-600 text-white px-4 py-2 rounded-xl"
+              disabled={isGenerating}
+            >
+              {isGenerating ? 'Generating...' : 'Generate Tailored Resume'}
+            </button>
 
-        {activeTab === 'followups' && (
-          <TabFollowUps
-            application={selectedApp}
-            masterResume={masterResume}
-            onUpdateAppContactDate={handleUpdateContactDate}
-            apiKey={settings.geminiApiKey}
-          />
-        )}
+            <button
+              onClick={handleCoverLetter}
+              className="bg-slate-900 text-white px-4 py-2 rounded-xl"
+            >
+              Generate Cover Letter
+            </button>
+          </div>
+        </section>
 
-        {activeTab === 'networking' && (
-          <TabNetworking
-            application={selectedApp}
-            masterResume={masterResume}
-            apiKey={settings.geminiApiKey}
-          />
-        )}
-      </main>
+        <section className="bg-white rounded-2xl border p-4">
+          <h2 className="font-bold text-lg mb-3">Generated Output</h2>
 
-      {/* Master Resume Upload & Review Modal */}
+          {tailoredResume && (
+            <div className="mb-6">
+              <h3 className="font-semibold mb-2">Tailored Resume</h3>
+              <pre className="whitespace-pre-wrap text-sm">{tailoredResume}</pre>
+            </div>
+          )}
+
+          {coverLetter && (
+            <div>
+              <h3 className="font-semibold mb-2">Cover Letter</h3>
+              <pre className="whitespace-pre-wrap text-sm">{coverLetter}</pre>
+            </div>
+          )}
+        </section>
+      </div>
+
       <ResumeModal
         isOpen={isResumeModalOpen}
         onClose={() => setIsResumeModalOpen(false)}
-        masterResume={masterResume}
-        onSaveResume={handleSaveResume}
-        apiKey={settings.geminiApiKey}
-      />
-
-      {/* Settings Modal */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        settings={settings}
-        onSaveSettings={handleSaveSettings}
-      />
-
-      {/* Sheet Manager Modal */}
-      <SheetModal
-        isOpen={isSheetModalOpen}
-        onClose={() => setIsSheetModalOpen(false)}
-        applications={applications}
-        selectedAppId={selectedAppId}
-        onSelectApp={(app) => setSelectedAppId(app.id)}
-        onAddApplication={handleAddApplication}
-        onSyncSheet={handleSyncSheet}
-        isSyncing={isSyncing}
-      />
-
-      {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-400 no-print">
-        JobAid • AI Job Hunting Command Center • Truth-Anchored Tailoring • Fast Plug & Play Application Kits
-      </footer>
-
-    </div>
+        masterResume={resume}
+        onSaveResume={setResume}
+        apiKey="" />
+    </main></>
   );
 }
