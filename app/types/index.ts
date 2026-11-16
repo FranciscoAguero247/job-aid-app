@@ -55,6 +55,14 @@ export interface MasterResume {
     period: string;
     bullets: string[];
   }[];
+  projects: {
+    id: string;
+    name: string;
+    description: string;
+    technologies: string[];
+    link?: string;
+    githubLink?: string;
+  }[];
   skills: {
     category: string;
     items: string[];

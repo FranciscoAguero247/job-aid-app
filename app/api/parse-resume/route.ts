@@ -78,6 +78,7 @@ function buildFallbackResume(rawText: string, fileName: string): MasterResume | 
         bullets: [summary],
       },
     ],
+    projects: [],
     skills: [
       {
         category: 'Detected Skills',
@@ -117,6 +118,14 @@ function parseGeminiResumePayload(rawText: string): MasterResume | null {
         period: exp?.period || '',
         bullets: Array.isArray(exp?.bullets) ? exp.bullets : [],
       })),
+      projects: Array.isArray(parsed.projects) ? parsed.projects.map((proj, index) => ({
+        id: proj?.id || `proj-${index + 1}`,
+        name: proj?.name || '',
+        description: proj?.description || '',
+        technologies: Array.isArray(proj?.technologies) ? proj.technologies : [],
+        link: proj?.link || '',
+        githubLink: proj?.githubLink || '',
+      })) : [],
       skills: parsed.skills.map((group, index) => ({
         category: group?.category || `Skill Group ${index + 1}`,
         items: Array.isArray(group?.items) ? group.items : [],
@@ -196,6 +205,16 @@ TASK: Extract the candidate's resume into valid JSON matching this TypeScript sc
     {
       "category": string (e.g. "Languages & Frameworks", "Tools & Platforms", "Databases"),
       "items": string[]
+    }
+  ],
+  projects": [
+    {
+      "id": string (unique e.g. "proj-1"),
+      "name": string,
+      "description": string,
+      "technologies": string[],
+      "link"?: string,
+      "githubLink"?: string
     }
   ],
   "education": [
