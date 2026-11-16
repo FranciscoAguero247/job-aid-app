@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { 
   generateTailoredResumeLocal, 
-  generateCoverLetterLocal, 
-  generateFollowUpLocal, 
-  generateNetworkingMessageLocal,
-  generateCareerAdviceLocal
+  generateCoverLetterLocal,
 } from '@/app/lib/generators';
 import { JobApplication, MasterResume } from '@/app/types';
 
@@ -12,7 +9,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { action, resume, application, options, apiKey } = body as {
-      action: 'resume' | 'cover-letter' | 'follow-up' | 'networking' | 'career-advice';
+      action: 'resume' | 'cover-letter';
       resume: MasterResume;
       application: JobApplication;
       options?: any;
@@ -53,48 +50,8 @@ RULES:
 4. Professional, confident, and direct call to action.`;
 
           userPrompt = `CANDIDATE:\n${JSON.stringify(resume, null, 2)}\n\nJOB APPLICATION:\nCompany: ${application.company}\nRole: ${application.position}\nHiring Contact: ${application.contact?.name || 'Hiring Manager'}\nJob Description:\n${application.jobDescription}${customNote}`;
-        } else if (action === 'career-advice') {
-          systemPrompt = `You are an executive career coach and technical hiring director.
-Analyze the match between the candidate's resume and the target job description.
-Output valid JSON matching this schema:
-{
-  "matchScore": number (70 to 98),
-  "strengths": string[] (3 specific competitive advantages candidate has for this role),
-  "gapsToAddress": string[] (2 honest gaps or areas candidate should be prepared to address in interview),
-  "interviewTips": string[] (3 high-leverage talking points tailored to this company and role),
-  "questionsToAsk": string[] (3 thoughtful technical/strategic questions for candidate to ask the interviewer)
-}`;
-
-          userPrompt = `CANDIDATE RESUME:\n${JSON.stringify(resume, null, 2)}\n\nTARGET JOB:\nCompany: ${application.company}\nRole: ${application.position}\nJD:\n${application.jobDescription}`;
-        } else if (action === 'follow-up') {
-          systemPrompt = `You are an expert on candidate communication. Draft a polite, timeline-aware follow-up email.
-RULES:
-1. Keep it under 150 words.
-2. Direct, polite, and low-friction for the recipient to reply.
-3. Output JSON with format: {"subject": "...", "body": "...", "timingTip": "..."}`;
-
-          userPrompt = `JOB: ${application.position} at ${application.company}
-APPLIED DATE: ${application.appliedDate}
-STATUS: ${application.status}
-CONTACT: ${application.contact?.name || 'Hiring Team'} (${application.contact?.email || 'N/A'})
-SCENARIO: ${options?.scenario || 'check-in'}
-CANDIDATE: ${resume.fullName}${customNote}`;
-        } else if (action === 'networking') {
-          systemPrompt = `You are the "Anti-Jargon Human Tone Engine". You write authentic, human-sounding LinkedIn notes.
-RULES:
-1. FORBIDDEN WORDS: "hope this finds you well", "thrilled", "esteemed", "spearheaded", "synergy", "deeply passionate", "kindly".
-2. If format is 'connection-note', character count MUST BE strictly under 295 characters!
-3. Keep tone conversational, respectful, and peer-to-peer.
-4. Output JSON with format: {"message": "...", "charCount": 0, "targetRole": "${options?.persona || 'recruiter'}"}`;
-
-          userPrompt = `TARGET: ${application.contact?.name || 'Contact'} (${options?.persona}) at ${application.company}
-JOB: ${application.position}
-FORMAT: ${options?.format || 'connection-note'}
-CANDIDATE: ${resume.fullName}, Senior Software Engineer${customNote}`;
         }
 
-        // Call Gemini REST endpoint
-        const isJsonOutput = action === 'follow-up' || action === 'networking' || action === 'career-advice';
         const geminiRes = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
           {
@@ -106,8 +63,7 @@ CANDIDATE: ${resume.fullName}, Senior Software Engineer${customNote}`;
                   role: 'user',
                   parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
                 }
-              ],
-              generationConfig: isJsonOutput ? { responseMimeType: 'application/json' } : undefined
+              ]
             })
           }
         );
@@ -116,15 +72,6 @@ CANDIDATE: ${resume.fullName}, Senior Software Engineer${customNote}`;
           const geminiData = await geminiRes.json();
           const generatedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
           if (generatedText) {
-            if (isJsonOutput) {
-              try {
-                const cleanedJson = generatedText.replace(/```json\n?|\n?```/g, '').trim();
-                const parsed = JSON.parse(cleanedJson);
-                return NextResponse.json({ success: true, result: parsed, source: 'gemini' });
-              } catch {
-                return NextResponse.json({ success: true, result: generatedText, source: 'gemini' });
-              }
-            }
             return NextResponse.json({ success: true, result: generatedText, source: 'gemini' });
           }
         }
@@ -133,18 +80,16 @@ CANDIDATE: ${resume.fullName}, Senior Software Engineer${customNote}`;
       }
     }
 
-    // High quality local fallback engine
     let result: any = null;
     if (action === 'resume') {
       result = generateTailoredResumeLocal(resume, application, options);
     } else if (action === 'cover-letter') {
       result = generateCoverLetterLocal(resume, application, options);
-    } else if (action === 'career-advice') {
-      result = generateCareerAdviceLocal(resume, application);
-    } else if (action === 'follow-up') {
-      result = generateFollowUpLocal(resume, application, options || { scenario: 'check-in', recipientType: 'hiring-manager' });
-    } else if (action === 'networking') {
-      result = generateNetworkingMessageLocal(resume, application, options || { persona: 'recruiter', format: 'connection-note', tone: 'casual' });
+    } else {
+      return NextResponse.json(
+        { success: false, error: 'Unsupported action. Only resume and cover-letter are available in this MVP.' },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json({

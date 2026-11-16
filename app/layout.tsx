@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-// @ts-expect-error Next.js injects global CSS type declarations at build time.
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "JobAid — AI Job Hunting Command Center",
-  description: "Unite your job tracker sheet, resume tailoring, follow-ups, and networking outreach into a single, cohesive workflow.",
+  title: "Resume Tailor",
+  description: "Tailor a resume to a job description and generate a matching cover letter.",
 };
 
 export default function RootLayout({
