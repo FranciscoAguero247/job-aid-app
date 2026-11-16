@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { MasterResume } from '@/app/types';
 
-async function extractPdfText(file: File): Promise<string> {
+async function extractPdfTextFromBuffer(buffer: Buffer): Promise<string> {
   try {
-    const buffer = Buffer.from(await file.arrayBuffer());
     const pdfData = new Uint8Array(buffer);
     const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
 
@@ -46,11 +45,14 @@ export async function POST(req: NextRequest) {
 
     let rawText = '';
     let base64Pdf = '';
+    let buffer: Buffer | null = null;
 
     if (isPdf) {
-      const buffer = await file.arrayBuffer();
-      base64Pdf = Buffer.from(buffer).toString('base64');
-      rawText = await extractPdfText(file);
+      const arrayBuffer = await file.arrayBuffer();
+      buffer = Buffer.from(arrayBuffer);
+      base64Pdf = buffer.toString('base64');
+      // Attempt local extraction, but don't hard-fail if pdfjs-dist stumbles
+      rawText = await extractPdfTextFromBuffer(buffer);
     } else {
       rawText = await file.text();
       if (isJson) {
@@ -65,7 +67,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Attempt Gemini Structured Parser if key is available
+    // 1. Attempt Gemini Structured Parser (Gemini handles PDFs natively via base64)
     if (apiKey) {
       try {
         const systemPrompt = `You are an elite, highly accurate resume data extraction engine.
@@ -156,23 +158,16 @@ CRITICAL RULES:
       }
     }
 
-    // Heuristic Fallback Parser (extracts basic fields from plain text)
-    const fallbackText = rawText || `Resume extracted from ${file.name}`;
-    const emailMatch = fallbackText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    const phoneMatch = fallbackText.match(/(\+?\d{1,3}[-.\s]?)?(\(?\d{3}\)?[-.\s]?)?\d{3}[-.\s]?\d{4}/);
-    const linkedinMatch = fallbackText.match(/linkedin\.com\/in\/[a-zA-Z0-9_-]+/);
-    const githubMatch = fallbackText.match(/github\.com\/[a-zA-Z0-9_-]+/);
-
-    const baseName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
-    const extractedText = rawText.trim();
-
-    if (!extractedText || extractedText.length < 200) {
+    // 2. Only enforce the text length guard if Gemini wasn't used / available AND local extraction truly found nothing
+    if (isPdf && (!rawText || rawText.trim().length < 50)) {
       return NextResponse.json({
         success: false,
-        error: 'Resume text could not be read from the PDF. Try a text-based PDF or upload a different file.'
+        code: 'SCANNED_OR_IMAGE_PDF',
+        error: 'Resume text could not be read locally. Please provide a Gemini API key for native PDF parsing, or upload text.'
       }, { status: 422 });
     }
 
+    // 3. Heuristic Fallback Parser Response
     return NextResponse.json({
       success: true,
       source: 'heuristic-fallback',
