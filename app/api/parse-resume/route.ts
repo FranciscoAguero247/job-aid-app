@@ -164,46 +164,17 @@ CRITICAL RULES:
     const githubMatch = fallbackText.match(/github\.com\/[a-zA-Z0-9_-]+/);
 
     const baseName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
-    const fallbackResume: MasterResume = {
-      fullName: baseName.charAt(0).toUpperCase() + baseName.slice(1),
-      email: emailMatch ? emailMatch[0] : 'candidate@example.com',
-      phone: phoneMatch ? phoneMatch[0] : '(555) 012-3456',
-      location: 'United States',
-      linkedin: linkedinMatch ? `https://${linkedinMatch[0]}` : 'https://linkedin.com',
-      github: githubMatch ? `https://${githubMatch[0]}` : undefined,
-      summary: fallbackText.slice(0, 280).replace(/[\r\n]+/g, ' ') || 'Experienced software professional focused on building reliable, user-friendly solutions.',
-      experience: [
-        {
-          id: 'exp-1',
-          role: 'Software Engineer',
-          company: 'Technology Solutions',
-          location: 'Remote',
-          period: '2021 - Present',
-          bullets: [
-            'Engineered customer-facing features and scalable web architectures with modern tools.',
-            'Collaborated with cross-functional teams to improve application performance and reliability.',
-            'Authored unit and end-to-end integration tests to safeguard platform stability.'
-          ]
-        }
-      ],
-      skills: [
-        {
-          category: 'Core Competencies',
-          items: ['TypeScript', 'JavaScript', 'React', 'Node.js', 'Git', 'REST APIs', 'SQL']
-        }
-      ],
-      education: [
-        {
-          degree: 'B.S. in Computer Science or Equivalent Experience',
-          institution: 'University / Academy',
-          year: '2020'
-        }
-      ]
-    };
+    const extractedText = rawText.trim();
+
+    if (!extractedText || extractedText.length < 200) {
+      return NextResponse.json({
+        success: false,
+        error: 'Resume text could not be read from the PDF. Try a text-based PDF or upload a different file.'
+      }, { status: 422 });
+    }
 
     return NextResponse.json({
       success: true,
-      resume: fallbackResume,
       source: 'heuristic-fallback',
       message: 'Parsed via local fallback. Provide Gemini API key in Settings for deep semantic PDF parsing.'
     });
