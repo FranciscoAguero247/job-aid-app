@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import ResumeModal from './components/ResumeModal';
 import { MasterResume } from './types';
 import Header from './components/Header';
+import { downloadTextAsPdf } from './lib/PDF-export';
 
 const DEFAULT_RESUME: MasterResume = {
   fullName: '',
@@ -17,6 +18,7 @@ const DEFAULT_RESUME: MasterResume = {
   experience: [],
   skills: [],
   education: [],
+  projects: [],
 };
 
 export default function Home() {
@@ -90,6 +92,16 @@ export default function Home() {
     }
   };
 
+  const handleDownloadResume = () => {
+    if (!tailoredResume) return;
+    downloadTextAsPdf('tailored-resume', tailoredResume);
+  };
+
+  const handleDownloadCoverLetter = () => {
+    if (!coverLetter) return;
+    downloadTextAsPdf('cover-letter', coverLetter);
+  };
+
   return (
     <>
     <Header />
@@ -139,14 +151,30 @@ export default function Home() {
 
           {tailoredResume && (
             <div className="mb-6">
-              <h3 className="font-semibold mb-2">Tailored Resume</h3>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h3 className="font-semibold">Tailored Resume</h3>
+                <button
+                  onClick={handleDownloadResume}
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  Download PDF
+                </button>
+              </div>
               <pre className="whitespace-pre-wrap text-sm">{tailoredResume}</pre>
             </div>
           )}
 
           {coverLetter && (
             <div>
-              <h3 className="font-semibold mb-2">Cover Letter</h3>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h3 className="font-semibold">Cover Letter</h3>
+                <button
+                  onClick={handleDownloadCoverLetter}
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  Download PDF
+                </button>
+              </div>
               <pre className="whitespace-pre-wrap text-sm">{coverLetter}</pre>
             </div>
           )}

@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "jspdf": "^4.2.1",
     "next": "^15.1.0",
     "pdfjs-dist": "^6.5.438",
     "react": "^19.0.0",

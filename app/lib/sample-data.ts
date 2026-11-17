@@ -10,6 +10,16 @@ export const SAMPLE_MASTER_RESUME: MasterResume = {
   portfolio: "https://alexrivera.io",
   summary:
     "Product-focused Senior Software Engineer with 6+ years of experience architecting high-traffic web applications, design systems, and real-time collaborative interfaces. Proven track record scaling React/Next.js and Node.js platforms to millions of monthly active users while reducing load times by up to 45%. Passionate about intuitive UI/UX, developer velocity, and robust distributed systems.",
+  projects: [
+    {
+      id: 'proj-1',
+      name: 'LiveOps Dashboard',
+      description: 'Built a real-time analytics dashboard for internal operations teams with feature flags, role-based access controls, and low-latency data sync.',
+      technologies: ['React', 'Next.js', 'TypeScript', 'PostgreSQL'],
+      link: 'https://example.com/liveops',
+      githubLink: 'https://github.com/example/liveops',
+    },
+  ],
   experience: [
     {
       id: "exp-1",
