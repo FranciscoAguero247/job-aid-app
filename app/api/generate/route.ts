@@ -18,7 +18,6 @@ export async function POST(req: NextRequest) {
 
     const geminiKey = apiKey || process.env.GEMINI_API_KEY;
 
-    // If Gemini key is available, attempt real LLM call
     if (geminiKey) {
       try {
         let systemPrompt = '';
@@ -26,37 +25,46 @@ export async function POST(req: NextRequest) {
         const customNote = options?.customInstruction ? `\nUSER SPECIFIC TWEAK REQUEST: ${options.customInstruction}` : '';
 
         if (action === 'resume') {
-          systemPrompt = `You are an elite, truth-anchored technical resume strategist.
+          systemPrompt = `You are an elite, truth-anchored technical resume strategist and ATS optimization expert.
 YOUR HIGHEST DIRECTIVE IS ACCURACY AND TRUTH PRESERVATION.
 
 STRICT TRUTH GUARDRAILS:
 1. IMMUTABLE FACTS: You must NEVER invent, fabricate, or hallucinate technical skills, programming languages, employers, job titles, dates, or degrees not explicitly present in the candidate's master resume.
-2. PRESERVE TRUE METRICS: Do not invent or inflate numbers, percentages, or dollar amounts.
+2. PRESERVE TRUE METRICS: Do not invent, inflate, or alter numbers, percentages, or dollar amounts.
 3. SURGICAL TAILORING:
-   - Match the candidate's evidence directly to the target role's top requirements.
-   - Re-order experience and bullets so the most relevant work appears first.
-   - Rephrase the summary to emphasize the role-specific value proposition.
-   - Align terminology truthfully (e.g. if candidate wrote "RESTful endpoints" and JD asks for "REST APIs").
-   - Keep only the strongest, most relevant experience and skills for this job.
+- Match the candidate's evidence directly to the target role's top requirements and extracted skills.
+- Re-order experience and bullets so the most relevant work appears first.
+- Rephrase the summary to emphasize the role-specific value proposition.
+- Align terminology truthfully (e.g. if candidate wrote "RESTful endpoints" and JD asks for "REST APIs").
+- Keep only the strongest, most relevant experience and skills for this job.
 4. NO FLUFF: Eliminate generic buzzwords and empty adjectives.
-5. FORMAT: Return clean, ATS-friendly Markdown with sections for summary, core skills, experience, and education, ready for PDF export.
-6. YOU MAY OMIT LESS RELEVANT EXPERIENCE if it is not strongly aligned to this job.
-7. Keep the resume concise and credible, not inflated.`;
+5. YOU MAY OMIT LESS RELEVANT EXPERIENCE if it is not strongly aligned to this job.
 
-          userPrompt = `CANDIDATE MASTER RESUME:\n${JSON.stringify(resume, null, 2)}\n\nTARGET JOB:\nCompany: ${application.company}\nTitle: ${application.position}\nJob Description:\n${application.jobDescription}${customNote}\n\nTask: Rewrite the resume to maximize fit for this specific role while staying truthful to the candidate's actual experience.`;
+CRITICAL FORMATTING RULES:
+1. Output all summary sentences and achievement bullets as clean, professional plain text.
+2. DO NOT include markdown formatting symbols like asterisks (**), hashes (#), or markdown bullets (-).
+3. Return clean, ATS-friendly text structured with clear section headers ready for PDF export.`;
+
+          userPrompt = `CANDIDATE MASTER RESUME:\n${JSON.stringify(resume, null, 2)}\n\nEXTRACTED JOB METADATA:\nCompany: ${application.company || 'Not specified'}\nPosition: ${application.position || 'Not specified'}\nRequirements: ${JSON.stringify(application.requirements || [])}\n\nFULL JOB DESCRIPTION:\n${application.jobDescription}${customNote}\n\nTask: Rewrite the resume to maximize fit for this specific role while staying strictly truthful to the candidate's actual experience.`;
         } else if (action === 'cover-letter') {
-          systemPrompt = `You are a direct, modern hiring coach. Write a compelling, concise cover letter (3-4 paragraphs max) that feels specific and human.
+          systemPrompt = `You are a direct, modern hiring coach and expert professional cover letter writer. Write a compelling, concise cover letter (3-4 paragraphs max) that feels specific and human.
+
 RULES:
-1. Zero generic fluff (NO "I am writing to express my enthusiasm", NO "thrilled to apply", NO robotic clichés).
+1. Zero generic fluff (NO robotic clichés like "thrilled to apply").
 2. Use only evidence that is grounded in the candidate's real resume.
-3. Show specific knowledge of the company and how the candidate's background fits the role.
-4. Highlight 2-3 relevant achievements or strengths that match the job description.
-5. Keep the tone polished, confident, and concise.
-6. Output only the cover letter text, no extra commentary or headings.`;
+3. Show specific knowledge of the company and how the candidate's background fits the role. 
+4. CRITICAL METADATA INSTRUCTION: If the company name or position title is empty, unspecified, or blank, DO NOT fabricate placeholders like "Target Company" or "Target Role". Instead, frame the opening naturally (e.g., "I am writing to express my strong interest in the open engineering position...") without inserting a fake company name.
+5. Highlight 2-3 relevant achievements or strengths that match the job description.
+6. Keep the tone polished, confident, and concise.
 
-          userPrompt = `CANDIDATE:\n${JSON.stringify(resume, null, 2)}\n\nJOB APPLICATION:\nCompany: ${application.company}\nRole: ${application.position}\nHiring Contact: ${application.contact?.name || 'Hiring Manager'}\nJob Description:\n${application.jobDescription}${customNote}\n\nTask: Write a tailored cover letter that matches the job requirements and reflects the candidate's real experience.`;
+CRITICAL FORMATTING RULES:
+1. Write in professional, natural prose.
+2. DO NOT use markdown asterisks (**), hashes (#), or bullet points (-).
+3. Output only the cover letter text, no extra commentary or headings.`;
+
+          userPrompt = `CANDIDATE:\n${JSON.stringify(resume, null, 2)}\n\nTARGET COMPANY & POSITION:\nCompany: ${application.company || ''}\nPosition: ${application.position || ''}\nHiring Contact: ${application.contact?.name || 'Hiring Manager'}\n\nJob Description:\n${application.jobDescription}${customNote}\n\nTask: Write a tailored cover letter that matches the job requirements and reflects the candidate's real experience.`;
         }
-
+        
         const geminiRes = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
           {
