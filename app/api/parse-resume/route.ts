@@ -5,7 +5,15 @@ import { MasterResume } from '@/app/types';
 async function extractPdfTextFromBuffer(buffer: Buffer): Promise<string> {
   try {
     const pdfData = new Uint8Array(buffer);
-    const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+
+    const loadingTask = pdfjsLib.getDocument({
+      data: pdfData,
+      useSystemFonts: true,
+    } as any);
+
+    const pdf = await loadingTask.promise;
 
     const pages: string[] = [];
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
