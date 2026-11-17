@@ -22,66 +22,57 @@ export function generateTailoredResumeLocal(
 ): string {
   const company = app.company || 'Target Company';
   const position = app.position || 'Software Engineer';
-
-  // Extract relevant keywords from JD
   const jdLower = (app.jobDescription || '').toLowerCase();
-  
-  // Find which of candidate's genuine skills appear in the JD
-  const allCandidateSkills = resume.skills.flatMap(s => s.items);
-  const matchedCandidateSkills = allCandidateSkills.filter(skill => 
-    jdLower.includes(skill.toLowerCase())
+
+  const allCandidateSkills = resume.skills.flatMap((group) => group.items);
+  const matchedCandidateSkills = allCandidateSkills.filter((skill) =>
+    skill && jdLower.includes(skill.toLowerCase())
   );
-  
+
   const topMatchedDisplay = matchedCandidateSkills.length > 0
     ? matchedCandidateSkills.slice(0, 8).join(', ')
     : allCandidateSkills.slice(0, 6).join(', ');
 
-  // Dynamic experience rendering
-  const experienceSection = resume.experience && resume.experience.length > 0
-    ? resume.experience.map(exp => {
-        return `#### **${exp.company}** | ${exp.location}
-*${exp.role}* | *${exp.period}*
-${exp.bullets.map(b => `* ${b}`).join('\n')}`;
-      }).join('\n\n')
-    : `#### **Software Engineering Experience** | Remote\n*Software Engineer* | *2021 - Present*\n* Engineered core application features and delivered measurable business impact.`;
+  const selectedExperience = resume.experience.length > 0
+    ? resume.experience
+        .map((exp) => ({
+          ...exp,
+          matchScore: exp.bullets.filter((bullet) => {
+            const bulletText = bullet.toLowerCase();
+            return Object.keys({
+              react: 'react',
+              javascript: 'javascript',
+              typescript: 'typescript',
+              next: 'next',
+              api: 'api',
+              product: 'product',
+              leadership: 'leadership',
+              performance: 'performance',
+              backend: 'backend',
+              systems: 'systems',
+            }).some((keyword) => bulletText.includes(keyword));
+          }).length,
+        }))
+        .sort((a, b) => b.matchScore - a.matchScore)
+    : [];
 
-  // Dynamic skills rendering
+  const experienceSection = selectedExperience.length > 0
+    ? selectedExperience.map((exp) => {
+        return `#### **${exp.company}** | ${exp.location}\n*${exp.role}* | *${exp.period}*\n${exp.bullets.map((b) => `* ${b}`).join('\n')}`;
+      }).join('\n\n')
+    : `#### **Software Engineering Experience** | Remote\n*Software Engineer* | *2021 - Present*\n* Built reliable software features and translated product requirements into maintainable code.`;
+
   const skillsSection = resume.skills && resume.skills.length > 0
-    ? resume.skills.map(skillGroup => `* **${skillGroup.category}:** ${skillGroup.items.join(', ')}`).join('\n')
+    ? resume.skills.map((skillGroup) => `* **${skillGroup.category}:** ${skillGroup.items.join(', ')}`).join('\n')
     : `* **Core Skills:** ${allCandidateSkills.join(', ')}`;
 
-  // Dynamic education rendering
   const educationSection = resume.education && resume.education.length > 0
-    ? resume.education.map(edu => `* **${edu.degree}** — ${edu.institution} (${edu.year})`).join('\n')
+    ? resume.education.map((edu) => `* **${edu.degree}** — ${edu.institution} (${edu.year})`).join('\n')
     : `* **Degree in Computer Science or Equivalent Practical Experience**`;
 
-  return `# ${resume.fullName}
-**${position} Candidate**
-${resume.location} | ${resume.email} | ${resume.phone}
-[LinkedIn](${resume.linkedin}) | [GitHub](${resume.github || '#'}) | [Portfolio](${resume.portfolio || '#'})
+  const summaryText = resume.summary || `Results-driven software engineering candidate with experience building reliable, product-focused systems and strong alignment with ${company}’s ${position} requirements.`;
 
----
-
-### PROFESSIONAL SUMMARY
-${resume.summary || `Results-driven software engineering candidate positioned specifically for **${company}**'s **${position}** role. Deep experience architecting scalable user experiences and reliable backend integrations, with direct alignment in **${topMatchedDisplay}**.`}
-
----
-
-### CORE COMPETENCIES & KEYWORD ALIGNMENT
-* **Target Alignment for ${company}:** ${topMatchedDisplay.toUpperCase()}
-${skillsSection}
-
----
-
-### PROFESSIONAL EXPERIENCE
-
-${experienceSection}
-
----
-
-### EDUCATION
-${educationSection}
-`;
+  return `# ${resume.fullName}\n**${position} Candidate**\n${resume.location} | ${resume.email} | ${resume.phone}\n[LinkedIn](${resume.linkedin}) | [GitHub](${resume.github || '#'}) | [Portfolio](${resume.portfolio || '#'})\n\n---\n\n### PROFESSIONAL SUMMARY\n${summaryText}\n\nThis profile is positioned for **${company}** and emphasizes work in **${topMatchedDisplay}**.\n\n---\n\n### CORE COMPETENCIES & TARGET ALIGNMENT\n* **Target Alignment for ${company}:** ${topMatchedDisplay.toUpperCase()}\n${skillsSection}\n\n---\n\n### PROFESSIONAL EXPERIENCE\n\n${experienceSection}\n\n---\n\n### EDUCATION\n${educationSection}\n`;
 }
 
 export function generateCoverLetterLocal(
@@ -96,21 +87,5 @@ export function generateCoverLetterLocal(
   const companyName = mostRecentRole?.company || 'my recent company';
   const leadMetric = mostRecentRole?.bullets[0] || 'delivering high-impact software features and leading technical initiatives';
 
-  return `${todayFormatted}
-
-Dear ${contactName},
-
-I have been following ${app.company}'s work closely—particularly your relentless commitment to craft, user experience, and technical execution. When I saw the opening for the ${app.position}, I knew my background as a ${roleName} aligned directly with what your engineering team is building.
-
-Throughout my experience, most recently at ${companyName}, I have focused on solving the core challenges highlighted in your job posting: ${leadMetric.replace(/^\*\s*/, '')}. I treat reliable system architecture, intuitive UI ergonomics, and clean code as essential requirements for high-velocity teams.
-
-What excites me most about ${app.company} is the opportunity to tackle genuine scale and deliver real value to your customers. Whether it is collaborating with designers, streamlining developer workflows, or optimizing runtime performance, I pride myself on turning complex technical specifications into reliable, production-ready systems.
-
-I would welcome the opportunity to speak with you about how my experience can help drive ${app.company}'s upcoming milestones. Thank you for your time and consideration.
-
-Sincerely,
-
-${resume.fullName}
-${resume.email} | ${resume.phone}
-${resume.portfolio || resume.linkedin}`;
+  return `${todayFormatted}\n\nDear ${contactName},\n\nI am excited to apply for the ${app.position} role at ${app.company}. My background as a ${roleName} has centered on building reliable, user-focused software and turning business goals into execution plans. In my work at ${companyName}, I have focused on solving the kinds of problems described in your job description, including ${leadMetric.replace(/^\*\s*/, '')}.\n\nWhat stands out to me about ${app.company} is the opportunity to contribute to work that combines product impact, technical quality, and a strong engineering culture. I bring a practical, collaborative approach to building systems that are maintainable, efficient, and grounded in user needs. I would welcome the chance to bring that experience to your team.\n\nThank you for your consideration. I would welcome the opportunity to discuss how my background could support ${app.company}'s goals.\n\nSincerely,\n\n${resume.fullName}\n${resume.email} | ${resume.phone}\n${resume.portfolio || resume.linkedin}`;
 }
