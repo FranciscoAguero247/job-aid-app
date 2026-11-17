@@ -1,25 +1,22 @@
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { NextRequest, NextResponse } from 'next/server';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { MasterResume } from '@/app/types';
 
-const pdfWorkerUrl = pathToFileURL(path.join(process.cwd(), 'node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.worker.mjs')).href;
+if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.mjs`;
+}
 
 async function extractPdfTextFromBuffer(buffer: Buffer): Promise<string> {
   try {
     const pdfData = new Uint8Array(buffer);
-    pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-
     const loadingTask = pdfjsLib.getDocument({
       data: pdfData,
       useSystemFonts: true,
-      isEvalSupported: false,
     } as any);
 
     const pdf = await loadingTask.promise;
-
     const pages: string[] = [];
+
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
       const page = await pdf.getPage(pageNum);
       const content = await page.getTextContent();
@@ -41,12 +38,18 @@ async function extractPdfTextFromBuffer(buffer: Buffer): Promise<string> {
   }
 }
 
-function buildFallbackResume(rawText: string, fileName: string): MasterResume | null {
-  const normalizedText = rawText.replace(/\s+/g, ' ').trim();
-  if (!normalizedText || normalizedText.length < 10) {
+function buildConservativeFallbackResume(rawText: string, fileName: string): MasterResume | null {
+  const lines = rawText
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+
+  const normalizedText = lines.join(' ');
+  if (!normalizedText || normalizedText.length < 20) {
     return null;
   }
 
+  // Conservative contact extraction
   const emailMatch = normalizedText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
   const phoneMatch = normalizedText.match(/(\+?\d{1,3}[-.\s]?)?(\(?\d{3}\)?[-.\s]?)?\d{3}[-.\s]?\d{4}/);
   const linkedinMatch = normalizedText.match(/linkedin\.com\/in\/([a-zA-Z0-9_-]+)/);
@@ -54,24 +57,78 @@ function buildFallbackResume(rawText: string, fileName: string): MasterResume | 
   const portfolioMatch = normalizedText.match(/(https?:\/\/[^\s]+|www\.[^\s]+)/i);
 
   const fileBaseName = fileName.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
-  const candidateNameLine = normalizedText
-    .split(/\n|\s{2,}/)
-    .find((line) => {
-      const trimmed = line.trim();
-      return trimmed && /^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+$/.test(trimmed);
-    }) || fileBaseName;
+  const candidateNameLine = lines.slice(0, 3).find((line) => {
+    return line.length < 40 && /^[A-Z][A-Za-z\s]{2,38}$/.test(line);
+  }) || fileBaseName;
 
-  const summary = normalizedText.length > 220
-    ? normalizedText.slice(0, 220).trim()
-    : normalizedText;
+  // Section Boundary Detectors
+  const sectionKeywords = /^(summary|professional summary|profile|experience|work experience|employment|skills|core competencies|education|projects)/i;
+  let currentSection = 'header';
+  const sections: Record<string, string[]> = {
+    summary: [],
+    experience: [],
+    skills: [],
+    education: [],
+    projects: [],
+  };
 
-  const skills = normalizedText
-    .split(/\s+/)
-    .filter((token) => token.length > 2)
-    .slice(0, 20)
-    .map((skill) => skill.replace(/[,.;]/g, ''));
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+    if (sectionKeywords.test(line) && line.length < 30) {
+      if (lower.includes('summary') || lower.includes('profile')) currentSection = 'summary';
+      else if (lower.includes('experience') || lower.includes('employment')) currentSection = 'experience';
+      else if (lower.includes('skill') || lower.includes('competencies')) currentSection = 'skills';
+      else if (lower.includes('education')) currentSection = 'education';
+      else if (lower.includes('project')) currentSection = 'projects';
+      continue;
+    }
+    if (sections[currentSection]) {
+      sections[currentSection].push(line);
+    }
+  }
 
-  const fallbackResume: MasterResume = {
+  const summaryText = sections.summary.join(' ').trim();
+  const summary = summaryText.length > 20 ? summaryText : '';
+
+  // Conservative skill extraction only from skill sections
+  const knownTechKeywords = new Set([
+    'react', 'next.js', 'typescript', 'javascript', 'python', 'node.js', 'tailwind',
+    'css', 'html', 'sql', 'git', 'docker', 'aws', 'graphql', 'rest', 'api', 'vue',
+    'angular', 'java', 'c++', 'ruby', 'mongodb', 'postgresql', 'linux', 'agile'
+  ]);
+
+  const extractedSkills: string[] = [];
+  if (sections.skills.length > 0) {
+    for (const line of sections.skills) {
+      const tokens = line.split(/[,•|/–\s]+/);
+      for (const token of tokens) {
+        const cleanToken = token.replace(/[^a-zA-Z0-9+#.]/g, '').trim();
+        if (cleanToken.length > 1 && (knownTechKeywords.has(cleanToken.toLowerCase()) || cleanToken[0] === cleanToken[0].toUpperCase())) {
+          if (!extractedSkills.includes(cleanToken)) {
+            extractedSkills.push(cleanToken);
+          }
+        }
+      }
+    }
+  }
+
+  // Do not invent false experience or education if unparseable
+  const experienceList = sections.experience.length > 0 ? [{
+    id: 'exp-1',
+    role: sections.experience[0] || 'Professional Role',
+    company: '',
+    location: '',
+    period: '',
+    bullets: sections.experience.slice(1, 6),
+  }] : [];
+
+  const educationList = sections.education.length > 0 ? [{
+    degree: sections.education.join(' '),
+    institution: '',
+    year: '',
+  }] : [];
+
+  return {
     fullName: candidateNameLine.trim(),
     email: emailMatch?.[0] || '',
     phone: phoneMatch?.[0] || '',
@@ -80,27 +137,11 @@ function buildFallbackResume(rawText: string, fileName: string): MasterResume | 
     github: githubMatch ? `https://github.com/${githubMatch[1]}` : '',
     portfolio: portfolioMatch ? portfolioMatch[0] : '',
     summary,
-    experience: [
-      {
-        id: 'exp-1',
-        role: 'Professional Experience',
-        company: '',
-        location: '',
-        period: '',
-        bullets: [summary],
-      },
-    ],
+    experience: experienceList,
     projects: [],
-    skills: [
-      {
-        category: 'Detected Skills',
-        items: skills.length ? skills : ['resume'],
-      },
-    ],
-    education: [],
+    skills: extractedSkills.length > 0 ? [{ category: 'Extracted Skills', items: extractedSkills.slice(0, 15) }] : [],
+    education: educationList,
   };
-
-  return fallbackResume;
 }
 
 function parseGeminiResumePayload(rawText: string): MasterResume | null {
@@ -109,9 +150,7 @@ function parseGeminiResumePayload(rawText: string): MasterResume | null {
     const parsed = JSON.parse(cleaned) as Partial<MasterResume>;
 
     if (!parsed || typeof parsed !== 'object') return null;
-    if (!parsed.fullName || !Array.isArray(parsed.experience) || !Array.isArray(parsed.skills)) {
-      return null;
-    }
+    if (!parsed.fullName || !Array.isArray(parsed.experience)) return null;
 
     return {
       fullName: parsed.fullName || '',
@@ -139,10 +178,10 @@ function parseGeminiResumePayload(rawText: string): MasterResume | null {
         githubLink: proj?.githubLink || '',
         bullets: Array.isArray(proj?.bullets) ? proj.bullets : [],
       })) : [],
-      skills: parsed.skills.map((group, index) => ({
+      skills: Array.isArray(parsed.skills) ? parsed.skills.map((group, index) => ({
         category: group?.category || `Skill Group ${index + 1}`,
         items: Array.isArray(group?.items) ? group.items : [],
-      })),
+      })) : [],
       education: Array.isArray(parsed.education) ? parsed.education.map((edu) => ({
         degree: edu?.degree || '',
         institution: edu?.institution || '',
@@ -181,49 +220,71 @@ export async function POST(req: NextRequest) {
       if (isJson) {
         try {
           const parsedJson = JSON.parse(rawText);
-          if (parsedJson.fullName && (parsedJson.experience || parsedJson.skills)) {
+          if (parsedJson.fullName && parsedJson.experience) {
             return NextResponse.json({ success: true, resume: parsedJson as MasterResume, source: 'json-direct' });
           }
         } catch {
-          // continue to AI or fallback parser
+          // Fall through
         }
       }
     }
 
+    // Use Gemini for PDFs/text when API key is available
     if (apiKey) {
       try {
-        const resumeData = buildFallbackResume(rawText, file.name) ?? {
-          fullName: '',
-          email: '',
-          phone: '',
-          location: '',
-          linkedin: '',
-          github: '',
-          portfolio: '',
-          summary: '',
-          experience: [],
-          projects: [],
-          skills: [],
-          education: [],
-        };
+        const strictExtractionPrompt = `You are an elite, highly accurate resume data extraction engine.
+TASK: Extract the candidate's resume precisely into valid JSON matching this TypeScript schema:
 
-        const systemPrompt = `You are an elite, highly accurate resume data extraction engine.
-        TASK: Convert the provided resume text into a clean, valid MasterResume JSON object.
+{
+  "fullName": string,
+  "email": string,
+  "phone": string,
+  "location": string,
+  "linkedin": string,
+  "github": string,
+  "portfolio": string,
+  "summary": string,
+  "experience": [
+    {
+      "id": string,
+      "role": string,
+      "company": string,
+      "location": string,
+      "period": string,
+      "bullets": string[]
+    }
+  ],
+  "skills": [
+    {
+      "category": string,
+      "items": string[]
+    }
+  ],
+  "projects": [
+    {
+      "id": string,
+      "name": string,
+      "description": string,
+      "technologies": string[],
+      "link": string,
+      "githubLink": string,
+      "bullets": string[]
+    }
+  ],
+  "education": [
+    {
+      "degree": string,
+      "institution": string,
+      "year": string
+    }
+  ]
+}
 
-        CANDIDATE RESUME TEXT:
-        ${rawText || 'No resume text was extracted.'}
-
-        EXISTING HEURISTIC STRUCTURE (for reference only):
-        ${JSON.stringify(resumeData, null, 2)}
-
-        OUTPUT REQUIREMENTS:
-        1. Extract all genuine factual employment history, company names, job titles, projects, and dates accurately.
-        2. Preserve metrics, percentages, and accomplishments when present.
-        3. Do not invent degrees, employers, tools, or credentials.
-        4. Output ONLY valid parseable JSON that matches the MasterResume schema.
-        5. Use plain text for summary and bullet content. Do not include markdown formatting symbols.
-        6. If some fields are not present, leave them as empty strings or empty arrays rather than inventing data.
-        `;
+STRICT EXTRACTION RULES:
+1. Preserve employment history precisely with real dates, roles, and companies.
+2. Preserve achievement bullet text and metrics accurately without altering numbers.
+3. Extract skills ONLY from designated skills sections or genuine technical context. Omit unknown or unmentioned fields.
+4. Output ONLY valid parseable JSON without markdown code fences, comments, or extra text.`;
 
         const parts: any[] = [];
         if (isPdf && base64Pdf) {
@@ -234,11 +295,11 @@ export async function POST(req: NextRequest) {
             },
           });
           parts.push({
-            text: `${systemPrompt}\n\nParse the attached PDF resume into the JSON schema.`,
+            text: `${strictExtractionPrompt}\n\nParse the attached PDF resume into the JSON schema.`,
           });
         } else {
           parts.push({
-            text: `${systemPrompt}\n\nCANDIDATE RESUME TEXT:\n${rawText}`,
+            text: `${strictExtractionPrompt}\n\nCANDIDATE RESUME TEXT:\n${rawText}`,
           });
         }
 
@@ -269,34 +330,25 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch (geminiErr) {
-        console.warn('Gemini resume parsing failed, using fallback:', geminiErr);
+        console.warn('Gemini extraction failed, falling back to conservative local parser:', geminiErr);
       }
     }
 
-    const hasMeaningfulText = !!rawText && rawText.replace(/\s+/g, ' ').trim().length >= 10;
-
-    if (isPdf && !hasMeaningfulText && !apiKey) {
-      return NextResponse.json({
-        success: false,
-        code: 'SCANNED_OR_IMAGE_PDF',
-        error: 'Resume text could not be read locally. Please provide a Gemini API key for native PDF parsing, or upload a text-based PDF or .txt resume.',
-      }, { status: 422 });
-    }
-
-    const heuristicResume = buildFallbackResume(rawText, file.name);
-    if (!heuristicResume) {
+    // Without a Gemini key, perform conservative local parsing
+    const conservativeResume = buildConservativeFallbackResume(rawText, file.name);
+    if (!conservativeResume) {
       return NextResponse.json({
         success: false,
         code: 'UNREADABLE_RESUME',
-        error: 'The uploaded resume is unreadable. Please upload a text-based PDF, plain text resume, or JSON resume.',
+        error: 'The uploaded resume could not be reliably parsed locally. Please provide a Gemini API key in Settings for native PDF extraction, or upload a pre-formatted JSON resume.',
       }, { status: 422 });
     }
 
     return NextResponse.json({
       success: true,
-      resume: heuristicResume,
-      source: 'heuristic-fallback',
-      message: 'Parsed via local fallback. Provide Gemini API key in Settings for deeper semantic extraction.',
+      resume: conservativeResume,
+      source: 'conservative-fallback',
+      message: 'Parsed via conservative local fallback. Provide Gemini API key in Settings for semantic extraction.',
     });
   } catch (error: any) {
     console.error('Resume upload error:', error);
