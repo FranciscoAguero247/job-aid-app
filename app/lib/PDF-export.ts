@@ -1,61 +1,71 @@
 import { jsPDF } from 'jspdf';
 
-function splitTextIntoLines(text: string, maxCharsPerLine = 90): string[] {
-  return text
-    .split(/\n/)
-    .flatMap((paragraph) => {
-      const words = paragraph.split(/\s+/);
-      const lines: string[] = [];
-      let current = '';
+export function downloadHtmlElementAsPdf(elementId: string, filename: string) {
+  const element = document.getElementById(elementId);
+  if (!element) return;
 
-      for (const word of words) {
-        const candidate = current ? `${current} ${word}` : word;
-        if (candidate.length <= maxCharsPerLine) {
-          current = candidate;
-        } else {
-          if (current) lines.push(current);
-          current = word;
-        }
-      }
+  const exportRoot = element.cloneNode(true) as HTMLElement;
+  exportRoot.style.cssText = `
+    width: 100%;
+    max-width: 820px;
+    margin: 0 auto;
+    background: #ffffff;
+    color: #111827;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    box-shadow: none;
+    font-family: Arial, Helvetica, sans-serif;
+    line-height: 1.5;
+    padding: 32px 40px;
+  `;
 
-      if (current) lines.push(current);
-      return lines;
-    });
-}
+  exportRoot.querySelectorAll('*').forEach((node) => {
+    const htmlNode = node as HTMLElement;
+    const allowedClasses = [
+      'resume-preview',
+      'resume-preview-header',
+      'resume-preview-name',
+      'resume-preview-meta',
+      'resume-preview-body',
+      'cover-letter-preview',
+    ];
 
-export function downloadTextAsPdf(filename: string, content: string) {
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const marginX = 48;
-  const marginY = 52;
-  const maxLineWidth = pageWidth - marginX * 2;
-  const lineHeight = 18;
-
-  const safeContent = (content || '').replace(/\r/g, '').trim();
-  const lines = splitTextIntoLines(safeContent);
-
-  let y = marginY;
-  let pageNumber = 1;
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-
-  for (const line of lines) {
-    const textLines = doc.splitTextToSize(line, maxLineWidth);
-
-    for (const segment of textLines) {
-      if (y > pageHeight - marginY) {
-        doc.addPage();
-        pageNumber += 1;
-        y = marginY;
-      }
-
-      doc.text(segment, marginX, y);
-      y += lineHeight;
+    if (!allowedClasses.some((className) => htmlNode.classList.contains(className))) {
+      htmlNode.removeAttribute('class');
     }
-  }
 
-  doc.save(`${filename}.pdf`);
+    if (htmlNode.tagName === 'TEXTAREA') {
+      htmlNode.className = '';
+      htmlNode.style.cssText = `
+        width: 100%;
+        min-height: 220px;
+        background: #ffffff;
+        color: #111827;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 16px;
+        font-size: 12px;
+        line-height: 1.6;
+        resize: none;
+      `;
+    }
+  });
+
+  const doc = new jsPDF('p', 'pt', 'a4');
+
+  doc.html(exportRoot, {
+    callback: (pdf) => {
+      pdf.save(`${filename}.pdf`);
+    },
+    margin: [32, 32, 32, 32],
+    autoPaging: 'text',
+    x: 0,
+    y: 0,
+    html2canvas: {
+      scale: 0.8,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+    },
+  });
 }
 

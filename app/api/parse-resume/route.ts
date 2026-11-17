@@ -1,16 +1,20 @@
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { NextRequest, NextResponse } from 'next/server';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { MasterResume } from '@/app/types';
 
+const pdfWorkerUrl = pathToFileURL(path.join(process.cwd(), 'node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.worker.mjs')).href;
+
 async function extractPdfTextFromBuffer(buffer: Buffer): Promise<string> {
   try {
     const pdfData = new Uint8Array(buffer);
-
-    pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
     const loadingTask = pdfjsLib.getDocument({
       data: pdfData,
       useSystemFonts: true,
+      isEvalSupported: false,
     } as any);
 
     const pdf = await loadingTask.promise;
@@ -39,7 +43,7 @@ async function extractPdfTextFromBuffer(buffer: Buffer): Promise<string> {
 
 function buildFallbackResume(rawText: string, fileName: string): MasterResume | null {
   const normalizedText = rawText.replace(/\s+/g, ' ').trim();
-  if (!normalizedText || normalizedText.length < 50) {
+  if (!normalizedText || normalizedText.length < 10) {
     return null;
   }
 
@@ -188,59 +192,38 @@ export async function POST(req: NextRequest) {
 
     if (apiKey) {
       try {
+        const resumeData = buildFallbackResume(rawText, file.name) ?? {
+          fullName: '',
+          email: '',
+          phone: '',
+          location: '',
+          linkedin: '',
+          github: '',
+          portfolio: '',
+          summary: '',
+          experience: [],
+          projects: [],
+          skills: [],
+          education: [],
+        };
+
         const systemPrompt = `You are an elite, highly accurate resume data extraction engine.
-TASK: Extract the candidate's resume into valid JSON matching this TypeScript schema:
+        TASK: Convert the provided resume text into a clean, valid MasterResume JSON object.
 
-{
-  "fullName": string,
-  "email": string,
-  "phone": string,
-  "location": string,
-  "linkedin": string,
-  "github": string,
-  "portfolio": string,
-  "summary": string,
-  "experience": [
-    {
-      "id": string (unique e.g. "exp-1"),
-      "role": string (job title),
-      "company": string,
-      "location": string,
-      "period": string (e.g. "2021 - Present" or "Jan 2020 - Dec 2022"),
-      "bullets": string[] (3-5 achievement bullet points, preserving true metrics)
-    }
-  ],
-  "skills": [
-    {
-      "category": string (e.g. "Languages & Frameworks", "Tools & Platforms", "Databases"),
-      "items": string[]
-    }
-  ],
-  "projects": [
-    {
-      "id": string (unique e.g. "proj-1"),
-      "name": string,
-      "description": string,
-      "technologies": string[],
-      "link": string,
-      "githubLink": string,
-      "bullets": string[]
-    }
-  ],
-  "education": [
-    {
-      "degree": string,
-      "institution": string,
-      "year": string
-    }
-  ]
-}
+        CANDIDATE RESUME TEXT:
+        ${rawText || 'No resume text was extracted.'}
 
-CRITICAL RULES:
-1. Extract ALL genuine factual employment history, company names, job titles, projects, and dates accurately.
-2. Preserve original metrics, percentages, and accomplishments in the bullets.
-3. DO NOT invent false employment or credentials.
-4. Output ONLY valid parseable JSON.`;
+        EXISTING HEURISTIC STRUCTURE (for reference only):
+        ${JSON.stringify(resumeData, null, 2)}
+
+        OUTPUT REQUIREMENTS:
+        1. Extract all genuine factual employment history, company names, job titles, projects, and dates accurately.
+        2. Preserve metrics, percentages, and accomplishments when present.
+        3. Do not invent degrees, employers, tools, or credentials.
+        4. Output ONLY valid parseable JSON that matches the MasterResume schema.
+        5. Use plain text for summary and bullet content. Do not include markdown formatting symbols.
+        6. If some fields are not present, leave them as empty strings or empty arrays rather than inventing data.
+        `;
 
         const parts: any[] = [];
         if (isPdf && base64Pdf) {
@@ -290,7 +273,9 @@ CRITICAL RULES:
       }
     }
 
-    if (isPdf && (!rawText || rawText.trim().length < 50)) {
+    const hasMeaningfulText = !!rawText && rawText.replace(/\s+/g, ' ').trim().length >= 10;
+
+    if (isPdf && !hasMeaningfulText && !apiKey) {
       return NextResponse.json({
         success: false,
         code: 'SCANNED_OR_IMAGE_PDF',

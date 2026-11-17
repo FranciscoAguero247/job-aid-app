@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import ResumeModal from './components/ResumeModal';
 import { MasterResume } from './types';
 import Header from './components/Header';
-import { downloadTextAsPdf } from './lib/PDF-export';
+import { downloadHtmlElementAsPdf } from './lib/PDF-export';
 
 const DEFAULT_RESUME: MasterResume = {
   fullName: '',
@@ -94,12 +94,12 @@ export default function Home() {
 
   const handleDownloadResume = () => {
     if (!tailoredResume) return;
-    downloadTextAsPdf('tailored-resume', tailoredResume);
+    downloadHtmlElementAsPdf('resume-preview', 'tailored-resume');
   };
 
   const handleDownloadCoverLetter = () => {
     if (!coverLetter) return;
-    downloadTextAsPdf('cover-letter', coverLetter);
+    downloadHtmlElementAsPdf('cover-letter-preview', 'cover-letter');
   };
 
   return (
@@ -160,11 +160,25 @@ export default function Home() {
                   Download PDF
                 </button>
               </div>
-              <textarea
-                value={tailoredResume}
-                onChange={(e) => setTailoredResume(e.target.value)}
-                className="min-h-[260px] w-full resize-y rounded-xl border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none"
-              />
+              <div className="resume-preview-wrapper">
+                <div id="resume-preview" className="resume-preview">
+                  <div className="resume-preview-header">
+                    <h4 className="resume-preview-name">{resume.fullName || 'Candidate Name'}</h4>
+                    <div className="resume-preview-meta">
+                      <span>{resume.location}</span>
+                      <span>{resume.email}</span>
+                      <span>{resume.phone}</span>
+                    </div>
+                  </div>
+                  <div className="resume-preview-body">
+                    <textarea
+                      value={tailoredResume}
+                      onChange={(e) => setTailoredResume(e.target.value)}
+                      className="min-h-[260px] w-full resize-y rounded-xl border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -179,11 +193,15 @@ export default function Home() {
                   Download PDF
                 </button>
               </div>
-              <textarea
-                value={coverLetter}
-                onChange={(e) => setCoverLetter(e.target.value)}
-                className="min-h-[220px] w-full resize-y rounded-xl border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none"
-              />
+              <div className="resume-preview-wrapper">
+                <div id="cover-letter-preview" className="resume-preview cover-letter-preview">
+                  <textarea
+                    value={coverLetter}
+                    onChange={(e) => setCoverLetter(e.target.value)}
+                    className="min-h-[220px] w-full resize-y rounded-xl border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+              </div>
             </div>
           )}
         </section>

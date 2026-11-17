@@ -20,7 +20,57 @@ body {
   padding: 0;
 }
 
-/* Print styling specifically for PDF export */
+.resume-preview-wrapper {
+  background: #f8fafc;
+  padding: 8px;
+  border-radius: 18px;
+}
+
+.resume-preview {
+  max-width: 820px;
+  margin: 0 auto;
+  background: white;
+  color: #111827;
+  padding: 32px 40px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.5;
+}
+
+.resume-preview-header {
+  border-bottom: 2px solid #dbe3ee;
+  padding-bottom: 12px;
+  margin-bottom: 18px;
+}
+
+.resume-preview-name {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.resume-preview-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+  color: #475569;
+  font-size: 12px;
+}
+
+.resume-preview-body {
+  font-size: 12px;
+}
+
+.cover-letter-preview {
+  min-height: 220px;
+}
+
 @media print {
   body {
     background: #ffffff !important;
