@@ -125,6 +125,7 @@ function parseGeminiResumePayload(rawText: string): MasterResume | null {
         technologies: Array.isArray(proj?.technologies) ? proj.technologies : [],
         link: proj?.link || '',
         githubLink: proj?.githubLink || '',
+        bullets: Array.isArray(proj?.bullets) ? proj.bullets : [],
       })) : [],
       skills: parsed.skills.map((group, index) => ({
         category: group?.category || `Skill Group ${index + 1}`,
@@ -207,14 +208,15 @@ TASK: Extract the candidate's resume into valid JSON matching this TypeScript sc
       "items": string[]
     }
   ],
-  projects": [
+  "projects": [
     {
       "id": string (unique e.g. "proj-1"),
       "name": string,
       "description": string,
       "technologies": string[],
-      "link"?: string,
-      "githubLink"?: string
+      "link": string,
+      "githubLink": string,
+      "bullets": string[]
     }
   ],
   "education": [
@@ -227,7 +229,7 @@ TASK: Extract the candidate's resume into valid JSON matching this TypeScript sc
 }
 
 CRITICAL RULES:
-1. Extract ALL genuine factual employment history, company names, job titles, and dates accurately.
+1. Extract ALL genuine factual employment history, company names, job titles, projects, and dates accurately.
 2. Preserve original metrics, percentages, and accomplishments in the bullets.
 3. DO NOT invent false employment or credentials.
 4. Output ONLY valid parseable JSON.`;

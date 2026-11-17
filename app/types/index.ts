@@ -38,6 +38,16 @@ export interface JobApplication {
   matchScore?: number;
 }
 
+export interface ProjectItem {
+  id: string;
+  name: string;
+  description: string;
+  technologies: string[];
+  link?: string;
+  githubLink?: string;
+  bullets?: string[]; // Added to match the resume parser and preview components
+}
+
 export interface MasterResume {
   fullName: string;
   email: string;
@@ -55,14 +65,7 @@ export interface MasterResume {
     period: string;
     bullets: string[];
   }[];
-  projects: {
-    id: string;
-    name: string;
-    description: string;
-    technologies: string[];
-    link?: string;
-    githubLink?: string;
-  }[];
+  projects: ProjectItem[];
   skills: {
     category: string;
     items: string[];
@@ -96,4 +99,3 @@ export interface ExtractedJobInfo {
   salary?: string;
   jobDescription: string;
 }
-
