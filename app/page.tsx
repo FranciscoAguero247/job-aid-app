@@ -150,32 +150,40 @@ export default function Home() {
           <h2 className="font-bold text-lg mb-3">Generated Output</h2>
 
           {tailoredResume && (
-            <div className="mb-6">
+            <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <h3 className="font-semibold">Tailored Resume</h3>
+                <h3 className="font-semibold text-slate-800">Tailored Resume</h3>
                 <button
                   onClick={handleDownloadResume}
-                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
                 >
                   Download PDF
                 </button>
               </div>
-              <pre className="whitespace-pre-wrap text-sm">{tailoredResume}</pre>
+              <textarea
+                value={tailoredResume}
+                onChange={(e) => setTailoredResume(e.target.value)}
+                className="min-h-[260px] w-full resize-y rounded-xl border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none"
+              />
             </div>
           )}
 
           {coverLetter && (
-            <div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <h3 className="font-semibold">Cover Letter</h3>
+                <h3 className="font-semibold text-slate-800">Cover Letter</h3>
                 <button
                   onClick={handleDownloadCoverLetter}
-                  className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
                 >
                   Download PDF
                 </button>
               </div>
-              <pre className="whitespace-pre-wrap text-sm">{coverLetter}</pre>
+              <textarea
+                value={coverLetter}
+                onChange={(e) => setCoverLetter(e.target.value)}
+                className="min-h-[220px] w-full resize-y rounded-xl border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none"
+              />
             </div>
           )}
         </section>
