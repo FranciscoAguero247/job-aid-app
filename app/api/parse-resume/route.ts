@@ -1,40 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { MasterResume } from '@/app/types';
 
-if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.mjs`;
-}
-
 async function extractPdfTextFromBuffer(buffer: Buffer): Promise<string> {
+  let parser: any | null = null;
+
   try {
-    const pdfData = new Uint8Array(buffer);
-    const loadingTask = pdfjsLib.getDocument({
-      data: pdfData,
-      useSystemFonts: true,
-    } as any);
-
-    const pdf = await loadingTask.promise;
-    const pages: string[] = [];
-
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
-      const page = await pdf.getPage(pageNum);
-      const content = await page.getTextContent();
-      const text = content.items
-        .map((item: any) => ('str' in item ? item.str : ''))
-        .join(' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-      if (text) {
-        pages.push(text);
-      }
-    }
-
-    return pages.join('\n\n');
+    const { PDFParse } = await import('pdf-parse');
+    parser = new PDFParse({ data: buffer });
+    const result = await parser.getText();
+    return result.text?.trim() || '';
   } catch (error) {
     console.warn('Local PDF extraction failed:', error);
     return '';
+  } finally {
+    if (parser) {
+      await parser.destroy().catch(() => undefined);
+    }
   }
 }
 

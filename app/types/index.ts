@@ -33,6 +33,8 @@ export interface JobApplication {
   lastContactDate: string; // YYYY-MM-DD
   jobUrl?: string;
   jobDescription: string;
+  requirements?: string[];
+  responsibilities?: string[];
   notes?: string;
   contact?: EnrichedContact;
   matchScore?: number;
