@@ -8,6 +8,7 @@ async function extractPdfTextFromBuffer(buffer: Buffer): Promise<string> {
     const { PDFParse } = await import('pdf-parse');
     parser = new PDFParse({ data: buffer });
     const result = await parser.getText();
+    console.log('Extracted PDF text:', result.text);
     return result.text?.trim() || '';
   } catch (error) {
     console.warn('Local PDF extraction failed:', error);
@@ -133,45 +134,49 @@ function parseGeminiResumePayload(rawText: string): MasterResume | null {
     if (!parsed || typeof parsed !== 'object') return null;
     if (!parsed.fullName || !Array.isArray(parsed.experience)) return null;
 
-    return {
-      fullName: parsed.fullName || '',
-      email: parsed.email || '',
-      phone: parsed.phone || '',
-      location: parsed.location || '',
-      linkedin: parsed.linkedin || '',
-      github: parsed.github || '',
-      portfolio: parsed.portfolio || '',
-      summary: parsed.summary || '',
-      experience: parsed.experience.map((exp, index) => ({
-        id: exp?.id || `exp-${index + 1}`,
-        role: exp?.role || '',
-        company: exp?.company || '',
-        location: exp?.location || '',
-        period: exp?.period || '',
-        bullets: Array.isArray(exp?.bullets) ? exp.bullets : [],
-      })),
-      projects: Array.isArray(parsed.projects) ? parsed.projects.map((proj, index) => ({
-        id: proj?.id || `proj-${index + 1}`,
-        name: proj?.name || '',
-        description: proj?.description || '',
-        technologies: Array.isArray(proj?.technologies) ? proj.technologies : [],
-        link: proj?.link || '',
-        githubLink: proj?.githubLink || '',
-        bullets: Array.isArray(proj?.bullets) ? proj.bullets : [],
-      })) : [],
-      skills: Array.isArray(parsed.skills) ? parsed.skills.map((group, index) => ({
-        category: group?.category || `Skill Group ${index + 1}`,
-        items: Array.isArray(group?.items) ? group.items : [],
-      })) : [],
-      education: Array.isArray(parsed.education) ? parsed.education.map((edu) => ({
-        degree: edu?.degree || '',
-        institution: edu?.institution || '',
-        year: edu?.year || '',
-      })) : [],
-    };
+    return normalizeMasterResume(parsed);
   } catch {
     return null;
   }
+}
+
+function normalizeMasterResume(parsed: Partial<MasterResume>): MasterResume {
+  return {
+    fullName: typeof parsed.fullName === 'string' ? parsed.fullName : '',
+    email: typeof parsed.email === 'string' ? parsed.email : '',
+    phone: typeof parsed.phone === 'string' ? parsed.phone : '',
+    location: typeof parsed.location === 'string' ? parsed.location : '',
+    linkedin: typeof parsed.linkedin === 'string' ? parsed.linkedin : '',
+    github: typeof parsed.github === 'string' ? parsed.github : '',
+    portfolio: typeof parsed.portfolio === 'string' ? parsed.portfolio : '',
+    summary: typeof parsed.summary === 'string' ? parsed.summary : '',
+    experience: Array.isArray(parsed.experience) ? parsed.experience.map((exp, index) => ({
+      id: exp?.id || `exp-${index + 1}`,
+      role: exp?.role || '',
+      company: exp?.company || '',
+      location: exp?.location || '',
+      period: exp?.period || '',
+      bullets: Array.isArray(exp?.bullets) ? exp.bullets.filter((bullet) => typeof bullet === 'string') : [],
+    })) : [],
+    projects: Array.isArray(parsed.projects) ? parsed.projects.map((proj, index) => ({
+      id: proj?.id || `proj-${index + 1}`,
+      name: proj?.name || '',
+      description: proj?.description || '',
+      technologies: Array.isArray(proj?.technologies) ? proj.technologies : [],
+      link: proj?.link || '',
+      githubLink: proj?.githubLink || '',
+      bullets: Array.isArray(proj?.bullets) ? proj.bullets : [],
+    })) : [],
+    skills: Array.isArray(parsed.skills) ? parsed.skills.map((group, index) => ({
+      category: group?.category || `Skill Group ${index + 1}`,
+      items: Array.isArray(group?.items) ? group.items : [],
+    })) : [],
+    education: Array.isArray(parsed.education) ? parsed.education.map((edu) => ({
+      degree: edu?.degree || '',
+      institution: edu?.institution || '',
+      year: edu?.year || '',
+    })) : [],
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -202,7 +207,8 @@ export async function POST(req: NextRequest) {
         try {
           const parsedJson = JSON.parse(rawText);
           if (parsedJson.fullName && parsedJson.experience) {
-            return NextResponse.json({ success: true, resume: parsedJson as MasterResume, source: 'json-direct' });
+            const normalizedResume = normalizeMasterResume(parsedJson as Partial<MasterResume>);
+            return NextResponse.json({ success: true, resume: normalizedResume, source: 'json-direct' });
           }
         } catch {
           // Fall through
