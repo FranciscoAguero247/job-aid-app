@@ -124,7 +124,7 @@ Requirements:
       const data = await res.json();
       if (data.success && data.resume) {
         onUpdateMasterResume(data.resume);
-        setTailoredResume(data.resume);
+        setTailoredResume(toTailoredResume(data.resume));
         setStatusMessage(`✓ Loaded resume for ${data.resume.fullName}`);
       } else {
         setStatusMessage(`Resume error: ${data.error || 'Failed to parse'}`);
@@ -217,8 +217,8 @@ Requirements:
         advicePromise,
       ]);
 
-      if (resumeRes?.success && resumeRes.result) {
-        setTailoredResume(resumeRes.result);
+      if (resumeRes?.success && resumeRes.resume) {
+        setTailoredResume(resumeRes.resume as TailoredResume);
       }
       if (coverRes?.success && coverRes.result) {
         setCoverLetter(coverRes.result);
@@ -271,6 +271,82 @@ Requirements:
   const matchedKeywords = allCandidateSkills.filter(s =>
     jobDescription.toLowerCase().includes(s.toLowerCase())
   );
+
+  const serializeTailoredResume = (resume: TailoredResume | null): string => {
+    if (!resume) return '';
+
+    const lines: string[] = [];
+
+    if (resume.summary) {
+      lines.push('PROFESSIONAL SUMMARY', resume.summary, '');
+    }
+
+    if (resume.skills.length > 0) {
+      lines.push('CORE SKILLS');
+      resume.skills.forEach((group) => {
+        lines.push(`${group.category}: ${group.items.join(', ')}`);
+      });
+      lines.push('');
+    }
+
+    if (resume.experience.length > 0) {
+      lines.push('EXPERIENCE');
+      resume.experience.forEach((exp) => {
+        lines.push(`${exp.role} — ${exp.company}`);
+        if (exp.location || exp.period) {
+          lines.push([exp.location, exp.period].filter(Boolean).join(' | '));
+        }
+        exp.bullets.forEach((bullet) => lines.push(`• ${bullet}`));
+        lines.push('');
+      });
+    }
+
+    if (resume.projects.length > 0) {
+      lines.push('PROJECTS');
+      resume.projects.forEach((project) => {
+        lines.push(project.name);
+        if (project.description) lines.push(project.description);
+        if (project.technologies.length > 0) {
+          lines.push(`Technologies: ${project.technologies.join(', ')}`);
+        }
+        project.bullets.forEach((bullet) => lines.push(`• ${bullet}`));
+        lines.push('');
+      });
+    }
+
+    if (resume.education.length > 0) {
+      lines.push('EDUCATION');
+      resume.education.forEach((education) => {
+        lines.push(`${education.degree} — ${education.institution}${education.year ? ` (${education.year})` : ''}`);
+      });
+    }
+
+    return lines.join('\n').trim();
+  };
+
+  // Transform parsed MasterResume to structured TailoredResume
+  const toTailoredResume = (resume: MasterResume): TailoredResume => ({
+    fullName: resume.fullName,
+    email: resume.email,
+    phone: resume.phone,
+    location: resume.location,
+    linkedin: resume.linkedin,
+    github: resume.github,
+    portfolio: resume.portfolio,
+    summary: resume.summary,
+    skills: resume.skills,
+    experience: resume.experience,
+    projects: resume.projects.map((project) => ({
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      technologies: project.technologies,
+      link: project.link || '',
+      githubLink: project.githubLink || '',
+      bullets: project.bullets || [],
+    })),
+    education: resume.education,
+  });
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-12">
