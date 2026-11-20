@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { JobApplication, MasterResume, AppSettings, CareerAdvice } from '../types';
+import { JobApplication, MasterResume, AppSettings, CareerAdvice, TailoredResume } from '../types';
 
 interface FastApplyWorkspaceProps {
   masterResume: MasterResume;
@@ -42,7 +42,7 @@ Requirements:
 
   // --- OUTPUT KIT STATES ---
   const [activeOutputTab, setActiveOutputTab] = useState<'resume' | 'cover-letter' | 'outreach' | 'advice'>('resume');
-  const [tailoredResume, setTailoredResume] = useState<string>('');
+  const [tailoredResume, setTailoredResume] = useState<TailoredResume | null>(null);
   const [coverLetter, setCoverLetter] = useState<string>('');
   const [outreachMessage, setOutreachMessage] = useState<{ message: string; charCount: number }>({
     message: '',
@@ -124,6 +124,7 @@ Requirements:
       const data = await res.json();
       if (data.success && data.resume) {
         onUpdateMasterResume(data.resume);
+        setTailoredResume(data.resume);
         setStatusMessage(`✓ Loaded resume for ${data.resume.fullName}`);
       } else {
         setStatusMessage(`Resume error: ${data.error || 'Failed to parse'}`);
