@@ -101,3 +101,43 @@ export interface ExtractedJobInfo {
   salary?: string;
   jobDescription: string;
 }
+
+export interface TailoredResume {
+  fullName: string;
+  email: string;
+  phone: string;
+  location: string;
+  linkedin: string;
+  github?: string;
+  portfolio?: string;
+  summary: string;
+  skills: {
+    category: string;
+    items: string[];
+  }[];
+  experience: {
+    id: string;
+    role: string;
+    company: string;
+    location: string;
+    period: string;
+    bullets: string[];
+  }[];
+  projects: {
+    id: string;
+    name: string;
+    description: string;
+    technologies: string[];
+    link: string;
+    githubLink: string;
+    bullets: string[];
+  }[];
+  education: {
+    degree: string;
+    institution: string;
+    year: string;
+  }[];
+  coverLetter?: {
+    content: string;
+  };
+}
