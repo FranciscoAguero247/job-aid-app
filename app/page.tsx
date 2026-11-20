@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import ResumeModal from './components/ResumeModal';
-import { MasterResume } from './types';
+import { MasterResume, TailoredResume } from './types';
 import Header from './components/Header';
 import { downloadHtmlElementAsPdf } from './lib/PDF-export';
 
@@ -62,7 +62,7 @@ function extractJobMetadata(jobText: string) {
 export default function Home() {
   const [resume, setResume] = useState<MasterResume>(DEFAULT_RESUME);
   const [jobDescription, setJobDescription] = useState('');
-  const [tailoredResume, setTailoredResume] = useState('');
+  const [tailoredResume, setTailoredResume] = useState<TailoredResume | null>(null);
   const [coverLetter, setCoverLetter] = useState('');
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -210,26 +210,60 @@ export default function Home() {
                     Download PDF
                   </button>
                 </div>
-                <div className="resume-preview-wrapper">
-                  <div id="resume-preview" className="resume-preview">
-                    <div className="resume-preview-header">
-                      <h4 className="resume-preview-name">{resume.fullName || 'Candidate Name'}</h4>
-                      <div className="resume-preview-meta">
-                        <span>{resume.location}</span>
-                        <span>{resume.email}</span>
-                        <span>{resume.phone}</span>
+                  <div className="resume-preview-wrapper">
+                    <div id="resume-preview" className="resume-preview">
+                      <div className="resume-preview-header">
+                        <h4 className="resume-preview-name">{resume.fullName || 'Candidate Name'}</h4>
+                        <div className="resume-preview-meta">
+                          <span>{resume.location}</span>
+                          <span>{resume.email}</span>
+                          <span>{resume.phone}</span>
+                          <div className="resume-preview-body">
+                        <div className="resume-preview-section">
+                          <h5 className="resume-preview-section-title">Summary</h5>
+                          <p>{tailoredResume?.summary}</p>
+                        </div>
+                        <div className="resume-preview-section">
+                          <h5 className="resume-preview-section-title">Skills</h5>
+                          <p>{tailoredResume?.skills.map(skill => skill.items.join(', ')).join(', ')}</p>
+                        </div>
+                        <div className="resume-preview-section">
+                          <h4 className="resume-preview-section-title">Experience</h4>
+                          {tailoredResume?.experience.map((exp) => (
+                            <div key={exp.id} className="mb-2">
+                              <strong>{exp.role}</strong> at <em>{exp.company}</em> ({exp.period})
+                              <ul className="list-disc list-inside">
+                                {exp.bullets.map((bullet, index) => (
+                                  <li key={index}>{bullet}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ))}
+                          <h5 className="resume-preview-section-title">Projects</h5>
+                          {tailoredResume?.projects.map((project) => (
+                            <div key={project.id} className="mb-2">
+                              <strong>{project.name}</strong>
+                              <p>{project.description}</p>
+                              <ul className="list-disc list-inside">
+                                {project.bullets.map((bullet, index) => (
+                                  <li key={index}>{bullet}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                    <div className="resume-preview-body">
-                      <textarea
-                        value={tailoredResume}
-                        onChange={(e) => setTailoredResume(e.target.value)}
-                        className="min-h-[260px] w-full resize-y rounded-xl border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-700 shadow-sm focus:border-blue-500 focus:outline-none"
-                      />
+                      <h5 className="resume-preview-section-title">Education</h5>
+                      {tailoredResume?.education.map((edu, index) => (
+                        <div key={index} className="mb-2">
+                          <strong>{edu.degree}</strong> at <em>{edu.institution}</em> ({edu.year})
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
             )}
 
             {coverLetter && (
