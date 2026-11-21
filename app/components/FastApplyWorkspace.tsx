@@ -21,15 +21,9 @@ export default function FastApplyWorkspace({
   // --- INPUT STATES ---
   const [jobInputType, setJobInputType] = useState<'url' | 'paste'>('paste');
   const [jobUrl, setJobUrl] = useState('');
-  const [jobDescription, setJobDescription] = useState(
-    `We are looking for a Senior Software Engineer to build scalable web applications.
-Requirements:
-- 5+ years with React, Next.js, and TypeScript
-- Strong understanding of web performance, REST/GraphQL APIs, and Tailwind CSS
-- Experience architecting reliable distributed services and collaborating with product teams.`
-  );
-  const [company, setCompany] = useState('Acme Corp');
-  const [position, setPosition] = useState('Senior Software Engineer');
+  const [jobDescription, setJobDescription] = useState('');
+  const [company, setCompany] = useState('');
+  const [position, setPosition] = useState('');
   const [includeCoverLetter, setIncludeCoverLetter] = useState(true);
   const [tone, setTone] = useState<'impact' | 'technical' | 'leadership'>('impact');
   const [customPrompt, setCustomPrompt] = useState('');
@@ -668,7 +662,7 @@ Requirements:
                 </button>
 
                 <button
-                  onClick={() => handleCopy(tailoredResume, 'resume')}
+                  onClick={() => handleCopy(serializeTailoredResume(tailoredResume), 'resume')}
                   className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold flex items-center gap-1.5 transition"
                 >
                   {copiedKey === 'resume' ? '✓ Copied' : '📋 Copy'}
@@ -693,9 +687,9 @@ Requirements:
                   </div>
                   <textarea
                     rows={26}
-                    value={tailoredResume}
-                    onChange={(e) => setTailoredResume(e.target.value)}
-                    className="w-full text-xs font-mono p-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 leading-relaxed"
+                    value={serializeTailoredResume(tailoredResume)}
+                    readOnly
+                    className="w-full text-xs font-mono p-3 rounded-xl border border-slate-200 text-slate-800 leading-relaxed"
                   />
                 </div>
               ) : (
@@ -722,7 +716,7 @@ Requirements:
 
                   {/* Render content cleanly formatted */}
                   <div className="text-xs text-slate-800 whitespace-pre-wrap font-sans space-y-4">
-                    {tailoredResume}
+                    {serializeTailoredResume(tailoredResume)}
                   </div>
                 </div>
               )}

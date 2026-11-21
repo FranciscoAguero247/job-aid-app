@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  generateTailoredResumeLocal,
-  generateCoverLetterLocal,
-} from '@/app/lib/generators';
+import { generateTailoredResumeLocal } from '@/app/lib/generators';
 import { JobApplication, MasterResume, TailoredResume } from '@/app/types';
 
 function buildTailoredResumeSystemPrompt(resume: MasterResume): string {
@@ -66,24 +63,12 @@ Required JSON structure:
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { action, resume, application, options, apiKey } = body as {
-      action: 'resume' | 'cover-letter';
+    const { resume, application, options, apiKey } = body as {
       resume: MasterResume;
       application: JobApplication;
       options?: { customInstruction?: string };
       apiKey?: string;
     };
-
-    if (action !== 'resume' && action !== 'cover-letter') {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            'Unsupported action. Only resume and cover-letter are available in this MVP.',
-        },
-        { status: 400 }
-      );
-    }
 
     const geminiKey = apiKey || process.env.GEMINI_API_KEY;
     const customNote = options?.customInstruction
@@ -97,27 +82,8 @@ export async function POST(req: NextRequest) {
         let systemPrompt = '';
         let userPrompt = '';
 
-        if (action === 'resume') {
-          systemPrompt = buildTailoredResumeSystemPrompt(resume);
-          userPrompt = `CANDIDATE MASTER RESUME:\n${JSON.stringify(resume, null, 2)}\n\nEXTRACTED JOB METADATA:\nCompany: ${application.company || 'Not specified'}\nPosition: ${application.position || 'Not specified'}\nRequirements: ${JSON.stringify(application.requirements || [])}\n\nFULL JOB DESCRIPTION:\n${application.jobDescription}${customNote}\n\nTask: Return only valid JSON matching the TailoredResume schema tailored to this role while staying strictly grounded in the master resume.`;
-        } else {
-          systemPrompt = `You are a direct, modern hiring coach and expert professional cover letter writer. Write a compelling, concise cover letter (3-4 paragraphs max) that feels specific and human.
-
-RULES:
-1. Zero generic fluff (NO robotic clichés like "thrilled to apply").
-2. Use only evidence that is grounded in the candidate's real resume.
-3. Show specific knowledge of the company and how the candidate's background fits the role. 
-4. CRITICAL METADATA INSTRUCTION: If the company name or position title is empty, unspecified, or blank, DO NOT fabricate placeholders like "Target Company" or "Target Role". Instead, frame the opening naturally (e.g., "I am writing to express my strong interest in the open engineering position...") without inserting a fake company name.
-5. Highlight 2-3 relevant achievements or strengths that match the job description.
-6. Keep the tone polished, confident, and concise.
-
-CRITICAL FORMATTING RULES:
-1. Write in professional, natural prose.
-2. DO NOT use markdown asterisks (**), hashes (#), or bullet points (-).
-3. Output only the cover letter text, no extra commentary or headings.`;
-
-          userPrompt = `CANDIDATE:\n${JSON.stringify(resume, null, 2)}\n\nTARGET COMPANY & POSITION:\nCompany: ${application.company || ''}\nPosition: ${application.position || ''}\nHiring Contact: ${application.contact?.name || 'Hiring Manager'}\n\nJob Description:\n${application.jobDescription}${customNote}\n\nTask: Write a tailored cover letter that matches the job requirements and reflects the candidate's real experience.`;
-        }
+        systemPrompt = buildTailoredResumeSystemPrompt(resume);
+        userPrompt = `CANDIDATE MASTER RESUME:\n${JSON.stringify(resume, null, 2)}\n\nEXTRACTED JOB METADATA:\nCompany: ${application.company || 'Not specified'}\nPosition: ${application.position || 'Not specified'}\nRequirements: ${JSON.stringify(application.requirements || [])}\n\nFULL JOB DESCRIPTION:\n${application.jobDescription}${customNote}\n\nTask: Return only valid JSON matching the TailoredResume schema tailored to this role while staying strictly grounded in the master resume.`;
 
         const geminiRes = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
@@ -134,15 +100,10 @@ CRITICAL FORMATTING RULES:
                   parts: [{ text: userPrompt }],
                 },
               ],
-              generationConfig:
-                action === 'resume'
-                  ? {
-                      responseMimeType: 'application/json',
-                      temperature: 0.2,
-                    }
-                  : {
-                      temperature: 0.5,
-                    },
+              generationConfig: {
+                responseMimeType: 'application/json',
+                temperature: 0.2,
+              },
             }),
           }
         );
@@ -154,15 +115,6 @@ CRITICAL FORMATTING RULES:
 
           if (generatedText) {
             rawFallbackText = generatedText;
-
-            if (action === 'cover-letter') {
-              return NextResponse.json({
-                success: true,
-                result: generatedText,
-                rawFallback: generatedText,
-                source: 'gemini',
-              });
-            }
 
             // action === 'resume': parse & validate into TailoredResume
             const parsed = parseGeminiResumePayload(generatedText);
@@ -191,32 +143,13 @@ CRITICAL FORMATTING RULES:
     }
 
     // Local fallback engine
-    if (action === 'resume') {
-      const localResult = generateTailoredResumeLocal(
-        resume,
-        application,
-        options as unknown as Parameters<typeof generateTailoredResumeLocal>[2]
-      ) as unknown as TailoredResume;
-
-      return NextResponse.json({
-        success: true,
-        resume: localResult,
-        result: localResult,
-        rawFallback: rawFallbackText || JSON.stringify(localResult, null, 2),
-        source: 'local-engine',
-      });
-    }
-
-    const coverLetterResult = generateCoverLetterLocal(
-      resume,
-      application,
-      options as unknown as Parameters<typeof generateCoverLetterLocal>[2]
-    );
+    const localResult = generateTailoredResumeLocal(resume, application, options);
 
     return NextResponse.json({
       success: true,
-      result: coverLetterResult,
-      rawFallback: rawFallbackText || coverLetterResult,
+      resume: localResult,
+      result: localResult,
+      rawFallback: rawFallbackText || JSON.stringify(localResult, null, 2),
       source: 'local-engine',
     });
   } catch (error: any) {

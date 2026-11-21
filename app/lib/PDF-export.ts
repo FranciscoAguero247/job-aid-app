@@ -27,7 +27,10 @@ export function downloadHtmlElementAsPdf(elementId: string, filename: string) {
       'resume-preview-name',
       'resume-preview-meta',
       'resume-preview-body',
-      'cover-letter-preview',
+      'resume-preview-section',
+      'resume-preview-section-title',
+      'resume-entry',
+      'resume-entry-heading',
     ];
 
     if (!allowedClasses.some((className) => htmlNode.classList.contains(className))) {

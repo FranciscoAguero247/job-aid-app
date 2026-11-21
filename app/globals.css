@@ -71,6 +71,106 @@ body {
   min-height: 220px;
 }
 
+.resume-preview-section {
+  margin-top: 18px;
+}
+
+.resume-preview-section:first-child {
+  margin-top: 0;
+}
+
+.resume-preview-section-title {
+  margin: 0 0 8px;
+  border-bottom: 1px solid #dbe3ee;
+  padding-bottom: 5px;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.resume-edit-input,
+.resume-edit-textarea {
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.resume-edit-input:hover,
+.resume-edit-input:focus,
+.resume-edit-textarea:hover,
+.resume-edit-textarea:focus {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  border-radius: 6px;
+}
+
+.resume-edit-name {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.resume-summary-edit,
+.resume-bullet-edit {
+  resize: vertical;
+  min-height: 54px;
+  line-height: 1.5;
+}
+
+.resume-inline-edit {
+  display: inline-block;
+  width: calc(100% - 110px);
+  min-height: 24px;
+  resize: vertical;
+}
+
+.resume-skill-group {
+  margin: 3px 0;
+}
+
+.resume-entry {
+  margin-top: 10px;
+}
+
+.resume-entry-heading {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.8fr) auto minmax(120px, 1fr) minmax(150px, 0.7fr);
+  gap: 6px;
+  align-items: center;
+}
+
+.resume-edit-role {
+  font-weight: 700;
+}
+
+.resume-entry-divider {
+  color: #94a3b8;
+}
+
+.resume-entry-meta {
+  text-align: right;
+  color: #64748b;
+}
+
+.resume-bullet-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  list-style: disc;
+}
+
+.resume-bullet-edit {
+  min-height: 32px;
+}
+
+.resume-project-tech {
+  color: #64748b;
+}
+
 @media print {
   body {
     background: #ffffff !important;
